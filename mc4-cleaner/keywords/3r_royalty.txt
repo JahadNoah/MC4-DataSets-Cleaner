@@ -1,0 +1,95 @@
+# 3R - ROYALTY (Raja/Institusi Diraja) - Sensitive royal institution terms
+# Covers: insulting the King, Sultans, Raja-Raja Melayu
+# Sedition Act 1948 s.3(1)(a) - seditious tendency against royalty
+# Penal Code s.499 - defamation of royalty
+
+# Direct insults to Yang di-Pertuan Agong (YDPA)
+\bhina raja\b
+\bhina sultan\b
+\bhina agong\b
+\bhina ydpa\b
+\bhina yang dipertuan agong\b
+\braja bodoh\b
+\braja celaka\b
+\bsultan celaka\b
+\bsultan bodoh\b
+\bsultan gila\b
+\braja gila\b
+\bbunuh raja\b
+\bbunuh sultan\b
+\bbunuh agong\b
+\bgulingkan sultan\b
+\bgulingkan raja\b
+\bgulingkan agong\b
+\bpada\b
+
+# Abolish monarchy
+\bhapus sistem raja\b
+\bhapus kesultanan\b
+\babolish monarchy\b
+\babolish the sultan\b
+\babolish the king\b
+\babolish the royalty\b
+\bno need for raja\b
+\btiadakan raja\b
+\btidak perlukan raja\b
+\bbuang sistem beraja\b
+\brepublik malaysia\b
+\brepublic malaysia\b
+\bberhenti beraja\b
+
+# Contempt of royalty
+\bmemalukan raja\b
+\bkeluarga diraja hina\b
+\bdiraja celaka\b
+\btentera diraja bodoh\b
+\bkebawah duli hina\b
+\bkebawah duli gila\b
+\bsultan zalim\b
+\braja zalim\b
+\braja pemeras\b
+\bsultan pemeras\b
+\bsultan rasuah\b
+\braja rasuah\b
+\bsultan korup\b
+\braja korup\b
+\binstitusi raja busuk\b
+\binstitusi diraja busuk\b
+\bdiraja tak relevan\b
+\braja tak perlu\b
+\bsultan tak perlu\b
+\broyalty corrupt\b
+\bking is corrupt\b
+\bsultan is corrupt\b
+\bking is useless\b
+\bsultan is useless\b
+\bking must die\b
+\bsultan must die\b
+\bkill the king\b
+\bkill the sultan\b
+\bkill the queen\b
+\bkill the royalty\b
+
+# Seditious insults (EN)
+\bdown with the king\b
+\bdown with the sultan\b
+\bdown with monarchy\b
+\bfuck the king\b
+\bfuck the sultan\b
+\bfuck the royalty\b
+\bking is a puppet\b
+\bsultan is a puppet\b
+\bking is a liar\b
+\bsultan is a liar\b
+\broyal family scandal\b
+\binsult.{0,20}sultan\b
+\binsult.{0,20}king\b
+\binsult.{0,20}royalt\b
+\bmock.{0,20}sultan\b
+\bmock.{0,20}king\b
+
+# Specific named sultans (pattern, avoid false positives by requiring negative context)
+\bsultan.*bodoh\b
+\bsultan.*celaka\b
+\bsultan.*hina\b
+\bsultan.*gila\b

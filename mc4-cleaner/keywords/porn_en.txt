@@ -1,0 +1,116 @@
+# English explicit/pornographic keywords and phrases
+# Format: one pattern per line; lines starting with # are comments
+# Regex-compatible patterns supported
+
+# Direct sexual acts
+\bsex\b
+\bsexual\b
+\bporn\b
+\bpornography\b
+\bpornographic\b
+\bxxx\b
+\berotic\b
+\berotica\b
+\bnude\b
+\bnaked\b
+\bnakedness\b
+\bnudity\b
+\bintercourse\b
+\bsexual intercourse\b
+\banal\b
+\boral sex\b
+\bblowjob\b
+\bhandjob\b
+\bfingering\b
+\bcumshot\b
+\bcreampie\b
+\bgangbang\b
+\bthreesome\b
+\borgy\b
+\bbestiality\b
+\bzoophilia\b
+\bsodomy\b
+\bpedophilia\b
+\bchild pornography\b
+\bcp\b
+\blolicon\b
+\bshota\b
+
+# Body parts (explicit)
+\bpenis\b
+\bvagina\b
+\bvulva\b
+\bclitoris\b
+\banus\b
+\bbuttocks\b
+\bbreasts?\b
+\bnipples?\b
+\btesticles?\b
+\bscrotum\b
+\berection\b
+\bejaculate\b
+\borgasm\b
+\bmasturbat\b
+\bsex toy\b
+\bdildo\b
+\bvibrator\b
+
+# Slang / profanity (explicit)
+\bfuck\b
+\bfucking\b
+\bfucked\b
+\bfucker\b
+\bshag\b
+\bbang\b
+\bboink\b
+\bboner\b
+\bdick\b
+\bcock\b
+\bpussy\b
+\bcunt\b
+\bwhore\b
+\bslut\b
+\bbitch\b
+\bhorny\b
+\bsexting\b
+\bstripping\b
+\bstripper\b
+\bescort\b
+\bprostitut\b
+\bcall girl\b
+\bsex worker\b
+\bonlyfans\b
+\bcamgirl\b
+\blive sex\b
+\bsex chat\b
+\bsex video\b
+\bporn hub\b
+\bpornhub\b
+\bxvideos\b
+\bxhamster\b
+\bxnxx\b
+\bredtube\b
+\byouporn\b
+\bmotherfucker\b
+\basshole\b
+\bboobs\b
+\btits\b
+\bass\b
+\bbutt\b
+\bnaughty\b
+\bkinky\b
+\bfetish\b
+\bbdsm\b
+\bdomination\b
+\bsubmission\b
+\bsex scene\b
+\bsex act\b
+\bsex tape\b
+\bnude photo\b
+\bnude video\b
+\bsexual content\b
+\badult content\b
+\badult video\b
+\badult site\b
+\bstrip club\b
+\blingerie\b

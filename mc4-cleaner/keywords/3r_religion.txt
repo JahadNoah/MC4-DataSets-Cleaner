@@ -1,0 +1,96 @@
+# 3R - RELIGION (Agama) - Sensitive religious terms under Malaysian law
+# Covers: blasphemy, apostasy, religious incitement, insulting religious figures
+# Sedition Act, Penal Code s.298, s.298A
+
+# Insulting Islam / Allah
+\bhina islam\b
+\borang islam bodoh\b
+\bislam sesat\b
+\bislam keganasan\b
+\bislam ganas\b
+\ballah palsu\b
+\bnabi sesat\b
+\bnabi bodoh\b
+\bmuhammad palsu\b
+\bhina nabi\b
+\bhina al.?quran\b
+\bal.?quran dusta\b
+\bislam murtad\b
+\bkeluar islam\b
+\bapostasy\b
+\bapostate\b
+\bmurtad\b
+\bibadah syirik\b
+\bsyirik\b
+\bsesat\b
+\bkafir\b
+\bmenghina agama\b
+\bmenghina masjid\b
+\bmenghina solat\b
+
+# Insulting other religions (Christianity, Buddhism, Hinduism, Sikhism)
+\bhina kristian\b
+\bhina buddha\b
+\bhina hindu\b
+\bhina sikh\b
+\bkristian sesat\b
+\bbuddha palsu\b
+\bharekrishna gila\b
+\bangkat salib bodoh\b
+
+# Religious incitement (EN)
+\bislam is terror\b
+\bislam is evil\b
+\ball muslims are\b
+\bkill the infidel\b
+\binfidel die\b
+\bjihad kill\b
+\bcrusade against islam\b
+\bburn the quran\b
+\bburn the bible\b
+\bburn the temple\b
+\bdestroy the mosque\b
+\bdestroy the church\b
+\banti.?islam\b
+\banti.?christian\b
+\banti.?hindu\b
+\banti.?buddhist\b
+\bislamophob\b
+\breligious hate\b
+\bblasphemy\b
+\bholy war\b
+\breligious war\b
+
+# Religious incitement (BM)
+\bperang agama\b
+\bbakar masjid\b
+\bbakar gereja\b
+\bbakar kuil\b
+\bbakar surau\b
+\bmuslim kafir\b
+\bagama sesat\b
+\bkristian kafir\b
+\bhindu kafir\b
+\bjihad membunuh\b
+\bbunuh kafir\b
+\bummat islam hina\b
+\bislam boleh dihina\b
+\bsolat tipu\b
+\bquran dusta\b
+\bkitab injil palsu\b
+\bbible palsu\b
+\bveda palsu\b
+
+# Conversion / proselytizing pressure (illegal in Malaysia)
+\bkeluar dari islam\b
+\btukar agama kepada kristian\b
+\bmasuk kristian\b
+\bmissionari haram\b
+\bconvert muslim\b
+
+# Extremism / terrorism association context
+\bterrorism islam\b
+\bislamic terrorist\b
+\bjihadist\b
+\bradicalize\b
+\bradikalisasi\b

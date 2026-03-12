@@ -1,0 +1,107 @@
+# Bahasa Melayu explicit/pornographic keywords and phrases
+# Format: one pattern per line; regex-compatible
+# Includes common Malay slang, colloquial BM, and Manglish variants
+
+# Direct terms
+\bseks\b
+\bseksual\b
+\bporn\b
+\bporno\b
+\bpornografi\b
+\berotik\b
+\btelanjang\b
+\bbogel\b
+\bhubungan seks\b
+\bpersetubuhan\b
+\bzina\b
+\bmelacur\b
+\blacur\b
+\bpelacur\b
+\bprostitus\b
+\bkehidupan malam\b
+\bwanita panggilan\b
+\bwanita murahan\b
+\bgadis murahan\b
+\bbersetubuh\b
+\bberzina\b
+\bsodomi\b
+\bliwat\b
+\bkemungkaran\b
+\bfornication\b
+
+# Body parts (BM slang/explicit)
+\bkonek\b
+\bkemaluan\b
+\bkemaluan lelaki\b
+\bkemaluan wanita\b
+\bburit\b
+\bpantat\b
+\bpuki\b
+\btetek\b
+\bsusu\b
+\bbontot\b
+\bpunggung\b
+\bbiji\b
+\bzakar\b
+\bfahraj\b
+\bfarji\b
+\bputting\b
+\bnipis\b
+\bpayudara\b
+\borgasma?\b
+\bejakulasi\b
+\bereksi\b
+\bonani\b
+
+# Acts (BM)
+\bmasturbasi\b
+\bmasturbat\b
+\bmerangsang\b
+\bmerogol\b
+\brogol\b
+\brogol beramai\b
+\bsodomi\b
+\bliwat\b
+\bberzinah\b
+\bcabul\b
+\bpencabulan\b
+\bperlakuan lucah\b
+\bmesra\b
+\bintim\b
+\bbersanggama\b
+\bsanggama\b
+\bmenjilat\b
+\bhisap\b
+
+# Slang and profanity (BM)
+\bpukimak\b
+\bpundek\b
+\bwangap\b
+\bgigolo\b
+\bpemandu seks\b
+\bseks bebas\b
+\bseks tanpa kondom\b
+\bvideo lucah\b
+\bgambar lucah\b
+\bbahan lucah\b
+\blaman lucah\b
+\bfilem lucah\b
+\bfilem biru\b
+\bvcd lucah\b
+\bklab malam\b
+\bocen\b
+\bhentai\b
+\bjururawat bogel\b
+\bgurau lucah\b
+\bcerita lucah\b
+\bkarya lucah\b
+
+# Common euphemisms / Bahasa rojak
+\bnakef\b
+\bsexs\b
+\bsex bebas\b
+\bmesum\b
+\bmesum\b
+\bskodeng\b
+\bkodek\b
+\blampu merah\b

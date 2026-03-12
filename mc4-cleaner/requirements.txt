@@ -1,0 +1,36 @@
+# ============================================================
+# MC4 Content Cleaning Pipeline - Requirements
+# ============================================================
+
+# --- Core (required) ---
+flask>=3.0.0             # Local web UI server
+regex>=2023.0.0          # Advanced regex engine
+tqdm>=4.66.0             # Progress bars
+colorama>=0.4.6          # Coloured terminal output
+
+# --- Dataset loading ---
+datasets>=2.18.0         # HuggingFace datasets (mc4, etc.)
+huggingface_hub>=0.22.0  # HF Hub access
+
+# --- ML-based detection (optional but recommended) ---
+transformers>=4.40.0     # HuggingFace Transformers
+accelerate>=0.29.0       # Multi-GPU / device acceleration
+sentencepiece>=0.2.0     # Required by some tokenizers
+
+# --- CUDA (select the right version for your GPU driver) ---
+# Uncomment ONE of the following:
+# torch>=2.2.0+cu121 --extra-index-url https://download.pytorch.org/whl/cu121  # CUDA 12.1
+# torch>=2.2.0+cu118 --extra-index-url https://download.pytorch.org/whl/cu118  # CUDA 11.8
+# torch>=2.2.0       # CPU only (auto-selected if neither above)
+
+# --- Performance / large scale ---
+pyarrow>=15.0.0          # Fast columnar I/O (used by datasets)
+fsspec>=2024.0.0         # Filesystem abstraction
+multiprocess>=0.70.16    # Better multiprocessing pickling
+
+# --- Optional: Near-duplicate detection via MinHash ---
+# datasketch>=1.6.4
+
+# --- Optional: Language detection ---
+# langdetect>=1.0.9
+# fasttext-wheel>=0.9.2   # Faster language ID

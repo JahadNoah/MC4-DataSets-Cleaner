@@ -1,0 +1,66 @@
+# 3R - RACE (Kaum/Ras) - Sensitive racial terms in Malaysia
+# Covers: racial slurs, racial incitement, ethnic supremacy, racial discrimination
+# Both English and Bahasa Melayu
+
+# Racial slurs targeting Malays
+\bmelayu bodoh\b
+\bmelayu malas\b
+\bmelayu celaka\b
+\bbumi tak guna\b
+\borang melayu babi\b
+
+# Racial slurs targeting Chinese Malaysians
+\bcina babi\b
+\bcina celaka\b
+\bcina balik china\b
+\bcina pendatang\b
+\bkeling\b
+\bkiling\b
+\bdayak babi\b
+\borang asli bodoh\b
+
+# Racial slurs targeting Indian Malaysians
+\bkeling babi\b
+\bindian celaka\b
+\bmamak celaka\b
+\bindian balik india\b
+
+# Racial incitement / supremacy (EN)
+\bracial supremacy\b
+\bethnic cleansing\b
+\bwhite supremac\b
+\bracial superiority\b
+\bracial inferior\b
+\bsend them back\b
+\bright of return\b
+\bra[cs]ist\b
+\banti.?melayu\b
+\banti.?cina\b
+\banti.?india\b
+
+# Racial incitement (BM)
+\bkaumnya rendah\b
+\bkaum hina\b
+\bkaum kafir\b
+\bbangsa asing\b
+\bpendatang haram\b
+\busir pendatang\b
+\bbumiputera terhina\b
+\bbumputera lemah\b
+\bketuanan melayu\b
+\bhak orang melayu\b
+\bcina komunis\b
+\bindian pariah\b
+\btumpah darah\b
+\bperang kaum\b
+\brusuhan kaum\b
+\b13 mei\b
+\bperistiwa 13 mei\b
+\bhuru.?hara kaum\b
+\bhuru.?hara racial\b
+
+# Dangerous comparisons / hierarchies
+\bkaum.*lebih baik\b
+\bkaum.*lebih tinggi\b
+\bkaum.*lebih rendah\b
+\betnik.*lebih baik\b

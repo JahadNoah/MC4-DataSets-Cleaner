@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MC4 Cleaner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { background: #080e1a; }
+    #log-box { font-family: ui-monospace, 'Courier New', monospace; }
+    .glass {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
+    }
+    .drop-hover {
+      border-color: #3b82f6 !important;
+      background: rgba(59,130,246,0.07) !important;
+    }
+    .pulse-dot { animation: pulseDot 1.5s ease-in-out infinite; }
+    @keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:0.25} }
+    /* smooth thumb slide */
+    .toggle-thumb { transition: left 0.18s ease-in-out; }
+  </style>
+</head>
+<body class="text-gray-100 min-h-screen">
+
+  <!-- ── Header ───────────────────────────────────────────────────────── -->
+  <header class="sticky top-0 z-10 border-b border-white/10 px-6 py-4"
+          style="background:rgba(8,14,26,0.92);backdrop-filter:blur(12px)">
+    <div class="max-w-6xl mx-auto flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm"
+           style="background:linear-gradient(135deg,#3b82f6,#06b6d4)">MC4</div>
+      <div>
+        <h1 class="font-bold text-white text-base leading-none">MC4 Cleaner</h1>
+        <p class="text-xs text-gray-500 mt-0.5 leading-none">
+          Malaysian Content-4 Dataset Cleaning Pipeline
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main ─────────────────────────────────────────────────────────── -->
+  <main class="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+    <!-- ── Left column (controls) ──────────────────────────────────── -->
+    <div class="lg:col-span-2 flex flex-col gap-5">
+
+      <!-- Drop zone -->
+      <div id="drop-zone"
+           class="glass rounded-2xl p-8 text-center border-2 border-dashed border-white/15
+                  cursor-pointer select-none transition-all duration-200
+                  hover:border-blue-400/40 hover:bg-blue-500/5"
+           onclick="document.getElementById('file-input').click()"
+           ondragover="onDragOver(event)"
+           ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event)">
+        <input id="file-input" type="file" class="hidden"
+               accept=".jsonl,.json,.txt" onchange="onFileSelect(event)">
+
+        <!-- Empty state -->
+        <div id="dz-empty">
+          <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+               style="background:rgba(59,130,246,0.15)">
+            <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011
+                       9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+          </div>
+          <p class="font-semibold text-white text-sm">Drop your JSONL file here</p>
+          <p class="text-gray-500 text-xs mt-1">or click to browse</p>
+          <p class="text-gray-600 text-xs mt-4 tracking-wide">
+            .jsonl &nbsp;·&nbsp; .json &nbsp;·&nbsp; .txt
+          </p>
+        </div>
+
+        <!-- File selected state -->
+        <div id="dz-selected" class="hidden">
+          <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+               style="background:rgba(16,185,129,0.15)">
+            <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <p id="dz-filename" class="font-semibold text-white text-sm break-all"></p>
+          <p id="dz-filesize" class="text-gray-400 text-xs mt-1"></p>
+          <button id="dz-clear"
+                  class="mt-3 text-xs text-gray-600 hover:text-red-400 transition-colors"
+                  onclick="clearFile(event)">✕ Remove file</button>
+        </div>
+      </div><!-- /drop-zone -->
+
+      <!-- Options panel -->
+      <div class="glass rounded-2xl p-5 space-y-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">
+          Detection Options
+        </h2>
+
+        <!-- Toggle rows -->
+        <div class="space-y-3">
+
+          <!-- Porn detection -->
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-200">Porn Detection</span>
+            <button type="button" id="tog-porn" role="switch" aria-checked="true"
+                    class="relative w-10 h-5 rounded-full transition-colors duration-200
+                           focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    style="background:#3b82f6"
+                    onclick="toggleSwitch(this)">
+              <span class="toggle-thumb absolute top-0.5 w-4 h-4 bg-white rounded-full shadow"
+                    style="left:22px"></span>
+            </button>
+          </div>
+
+          <!-- 3R detection -->
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-200">3R Sensitivity Detection</span>
+            <button type="button" id="tog-3r" role="switch" aria-checked="true"
+                    class="relative w-10 h-5 rounded-full transition-colors duration-200
+                           focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    style="background:#3b82f6"
+                    onclick="toggleSwitch(this)">
+              <span class="toggle-thumb absolute top-0.5 w-4 h-4 bg-white rounded-full shadow"
+                    style="left:22px"></span>
+            </button>
+          </div>
+
+          <!-- ML models -->
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-sm text-gray-200">ML Models</span>
+              <span class="text-xs text-gray-600 ml-1.5">(GPU/transformers)</span>
+            </div>
+            <button type="button" id="tog-ml" role="switch" aria-checked="false"
+                    class="relative w-10 h-5 rounded-full transition-colors duration-200
+                           focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    style="background:#374151"
+                    onclick="toggleSwitch(this); onMlToggle()">
+              <span class="toggle-thumb absolute top-0.5 w-4 h-4 bg-white rounded-full shadow"
+                    style="left:2px"></span>
+            </button>
+          </div>
+        </div><!-- /toggles -->
+
+        <div class="border-t border-white/8 pt-4 grid grid-cols-2 gap-4">
+          <!-- Workers -->
+          <div>
+            <label class="text-xs text-gray-500 block mb-1.5">
+              Workers <span class="text-gray-700">(0 = single)</span>
+            </label>
+            <input type="number" id="opt-workers" value="0" min="0" max="32"
+                   class="w-full rounded-lg px-3 py-2 text-sm bg-gray-900 border
+                          border-white/10 text-white focus:outline-none
+                          focus:border-blue-500 transition-colors">
+          </div>
+
+          <!-- ML threshold (disabled until ML toggled on) -->
+          <div id="ml-thresh-wrap"
+               class="opacity-30 pointer-events-none transition-opacity duration-200">
+            <label class="text-xs text-gray-500 block mb-1.5">
+              ML Threshold: <span id="thresh-val" class="text-blue-400">0.70</span>
+            </label>
+            <input type="range" id="opt-threshold" min="0.50" max="0.99"
+                   step="0.01" value="0.70"
+                   class="w-full h-1.5 rounded-full accent-blue-500 cursor-pointer"
+                   oninput="document.getElementById('thresh-val').textContent =
+                             parseFloat(this.value).toFixed(2)">
+          </div>
+        </div>
+      </div><!-- /options -->
+
+      <!-- Run button -->
+      <button id="run-btn" disabled
+              class="w-full py-3.5 rounded-xl font-semibold text-sm text-white
+                     transition-all duration-200 focus:outline-none
+                     disabled:opacity-30 disabled:cursor-not-allowed"
+              style="background:linear-gradient(135deg,#3b82f6,#06b6d4);
+                     box-shadow:0 4px 24px rgba(59,130,246,0.25)"
+              onclick="startJob()">
+        <span id="run-text">Select a file to begin</span>
+      </button>
+
+    </div><!-- /left col -->
+
+    <!-- ── Right column (log + results) ────────────────────────────── -->
+    <div class="lg:col-span-3 flex flex-col gap-5">
+
+      <!-- Log panel -->
+      <div class="glass rounded-2xl p-5 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">
+            Pipeline Log
+          </h2>
+          <div class="flex items-center gap-2">
+            <span id="status-dot" class="w-2 h-2 rounded-full bg-gray-700"></span>
+            <span id="status-label" class="text-xs text-gray-600">Idle</span>
+          </div>
+        </div>
+
+        <!-- Progress bar + counter -->
+        <div id="counter-wrap" class="hidden">
+          <div class="flex items-center gap-3">
+            <div class="h-1.5 flex-1 bg-gray-800 rounded-full overflow-hidden">
+              <div id="progress-bar" class="h-full rounded-full transition-all duration-500"
+                   style="width:2%;background:linear-gradient(90deg,#3b82f6,#06b6d4)">
+              </div>
+            </div>
+            <span id="counter-text"
+                  class="text-xs text-gray-400 whitespace-nowrap shrink-0 w-32 text-right">
+              0 records
+            </span>
+          </div>
+        </div>
+
+        <!-- Log output -->
+        <div id="log-box"
+             class="h-72 overflow-y-auto rounded-xl p-3 text-xs leading-relaxed space-y-0.5"
+             style="background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.05)">
+          <p class="text-gray-700 italic">Waiting for a job to start…</p>
+        </div>
+      </div><!-- /log panel -->
+
+      <!-- Results panel (hidden until done) -->
+      <div id="results-panel" class="hidden glass rounded-2xl p-5 space-y-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">
+          Results
+        </h2>
+
+        <!-- Main stats grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="rounded-xl p-4 text-center" style="background:rgba(255,255,255,0.04)">
+            <p id="stat-total" class="text-2xl font-bold text-white">—</p>
+            <p class="text-xs text-gray-500 mt-1">Total Records</p>
+          </div>
+          <div class="rounded-xl p-4 text-center" style="background:rgba(255,255,255,0.04)">
+            <p id="stat-flagged" class="text-2xl font-bold text-red-400">—</p>
+            <p class="text-xs text-gray-500 mt-1">Flagged</p>
+          </div>
+          <div class="rounded-xl p-4 text-center" style="background:rgba(255,255,255,0.04)">
+            <p id="stat-porn" class="text-2xl font-bold text-orange-400">—</p>
+            <p class="text-xs text-gray-500 mt-1">Porn</p>
+          </div>
+          <div class="rounded-xl p-4 text-center" style="background:rgba(255,255,255,0.04)">
+            <p id="stat-clean" class="text-2xl font-bold text-emerald-400">—</p>
+            <p class="text-xs text-gray-500 mt-1">Clean</p>
+          </div>
+        </div>
+
+        <!-- 3R breakdown -->
+        <div>
+          <p class="text-xs text-gray-600 mb-2 uppercase tracking-wider">3R Breakdown</p>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.03)">
+              <p id="stat-race" class="text-xl font-semibold text-yellow-300">—</p>
+              <p class="text-xs text-gray-600 mt-0.5">Race</p>
+            </div>
+            <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.03)">
+              <p id="stat-religion" class="text-xl font-semibold text-yellow-300">—</p>
+              <p class="text-xs text-gray-600 mt-0.5">Religion</p>
+            </div>
+            <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.03)">
+              <p id="stat-royalty" class="text-xl font-semibold text-yellow-300">—</p>
+              <p class="text-xs text-gray-600 mt-0.5">Royalty</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Perf line -->
+        <p id="stat-perf" class="text-xs text-gray-600 text-center"></p>
+
+        <!-- Download buttons -->
+        <div class="grid grid-cols-3 gap-2">
+          <a id="dl-cleaned" href="#" download
+             class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl
+                    text-sm font-medium transition-colors"
+             style="background:rgba(16,185,129,0.15);color:#34d399"
+             onmouseover="this.style.background='rgba(16,185,129,0.27)'"
+             onmouseout="this.style.background='rgba(16,185,129,0.15)'">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Cleaned JSONL
+          </a>
+          <a id="dl-csv" href="#" download
+             class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl
+                    text-sm font-medium transition-colors"
+             style="background:rgba(251,146,60,0.15);color:#fb923c"
+             onmouseover="this.style.background='rgba(251,146,60,0.27)'"
+             onmouseout="this.style.background='rgba(251,146,60,0.15)'">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Report CSV
+          </a>
+          <a id="dl-jsonl" href="#" download
+             class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl
+                    text-sm font-medium transition-colors"
+             style="background:rgba(59,130,246,0.15);color:#60a5fa"
+             onmouseover="this.style.background='rgba(59,130,246,0.27)'"
+             onmouseout="this.style.background='rgba(59,130,246,0.15)'">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Flagged JSONL
+          </a>
+        </div>
+      </div><!-- /results panel -->
+
+    </div><!-- /right col -->
+
+  </main><!-- /main -->
+
+  <!-- ── JavaScript ──────────────────────────────────────────────────── -->
+  <script>
+    'use strict';
+
+    // ── State ─────────────────────────────────────────────────────────
+    let selectedFile = null;
+    let currentJobId = null;
+    let sse = null;
+
+    // ── File handling ──────────────────────────────────────────────────
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+      return (bytes / 1073741824).toFixed(2) + ' GB';
+    }
+
+    function setFile(file) {
+      if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!['jsonl', 'json', 'txt'].includes(ext)) {
+        alert('Unsupported file type.\nPlease use .jsonl, .json, or .txt');
+        return;
+      }
+      selectedFile = file;
+      document.getElementById('dz-filename').textContent = file.name;
+      document.getElementById('dz-filesize').textContent = formatBytes(file.size);
+      document.getElementById('dz-empty').classList.add('hidden');
+      document.getElementById('dz-selected').classList.remove('hidden');
+      document.getElementById('run-btn').disabled = false;
+      document.getElementById('run-text').textContent = 'Run Pipeline';
+    }
+
+    function clearFile(e) {
+      e.stopPropagation();
+      selectedFile = null;
+      document.getElementById('file-input').value = '';
+      document.getElementById('dz-empty').classList.remove('hidden');
+      document.getElementById('dz-selected').classList.add('hidden');
+      document.getElementById('run-btn').disabled = true;
+      document.getElementById('run-text').textContent = 'Select a file to begin';
+    }
+
+    function onFileSelect(e) { setFile(e.target.files[0]); }
+    function onDragOver(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.add('drop-hover');
+    }
+    function onDragLeave() {
+      document.getElementById('drop-zone').classList.remove('drop-hover');
+    }
+    function onDrop(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.remove('drop-hover');
+      if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+    }
+
+    // ── Toggle switches ────────────────────────────────────────────────
+    function toggleSwitch(btn) {
+      const nowOn = btn.getAttribute('aria-checked') !== 'true';
+      btn.setAttribute('aria-checked', String(nowOn));
+      btn.style.background = nowOn ? '#3b82f6' : '#374151';
+      btn.querySelector('span').style.left = nowOn ? '22px' : '2px';
+    }
+
+    function onMlToggle() {
+      const on = document.getElementById('tog-ml').getAttribute('aria-checked') === 'true';
+      const wrap = document.getElementById('ml-thresh-wrap');
+      wrap.classList.toggle('opacity-30', !on);
+      wrap.classList.toggle('pointer-events-none', !on);
+    }
+
+    function getToggle(id) {
+      return document.getElementById(id).getAttribute('aria-checked') === 'true';
+    }
+
+    // ── Log helpers ────────────────────────────────────────────────────
+    function appendLog(text, cls) {
+      const box = document.getElementById('log-box');
+      const p = document.createElement('p');
+      p.className = cls || 'text-gray-400';
+      p.textContent = text;
+      box.appendChild(p);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function setStatus(label, dotColor, animate) {
+      document.getElementById('status-dot').className =
+        'w-2 h-2 rounded-full ' + dotColor + (animate ? ' pulse-dot' : '');
+      document.getElementById('status-label').textContent = label;
+      document.getElementById('status-label').className =
+        'text-xs ' + dotColor.replace('bg-', 'text-');
+    }
+
+    // ── Start a pipeline job ───────────────────────────────────────────
+    async function startJob() {
+      if (!selectedFile) return;
+      if (sse) { sse.close(); sse = null; }
+
+      // Reset UI
+      document.getElementById('log-box').innerHTML = '';
+      document.getElementById('results-panel').classList.add('hidden');
+      document.getElementById('counter-wrap').classList.remove('hidden');
+      document.getElementById('progress-bar').style.width = '2%';
+      document.getElementById('counter-text').textContent = '0 records';
+      setStatus('Running…', 'bg-blue-400', true);
+      document.getElementById('run-btn').disabled = true;
+      document.getElementById('run-text').textContent = 'Processing…';
+
+      // Build form data
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+      fd.append('skip_porn',   String(!getToggle('tog-porn')));
+      fd.append('skip_3r',     String(!getToggle('tog-3r')));
+      fd.append('use_ml',      String(getToggle('tog-ml')));
+      fd.append('workers',     document.getElementById('opt-workers').value);
+      fd.append('ml_threshold', document.getElementById('opt-threshold').value);
+
+      let res;
+      try {
+        res = await fetch('/clean', { method: 'POST', body: fd });
+      } catch (err) {
+        setStatus('Network error', 'bg-red-500', false);
+        appendLog('Network error: ' + err.message, 'text-red-400');
+        document.getElementById('run-btn').disabled = false;
+        document.getElementById('run-text').textContent = 'Run Pipeline';
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setStatus('Error', 'bg-red-500', false);
+        appendLog('Error: ' + (data.error || 'Unknown error'), 'text-red-400');
+        document.getElementById('run-btn').disabled = false;
+        document.getElementById('run-text').textContent = 'Run Pipeline';
+        return;
+      }
+
+      currentJobId = data.job_id;
+      appendLog('Job started (' + currentJobId.slice(0, 8) + '…)', 'text-gray-600');
+
+      // Open SSE stream
+      sse = new EventSource('/progress/' + currentJobId);
+
+      sse.onmessage = function (evt) {
+        const msg = JSON.parse(evt.data);
+
+        if (msg.type === 'heartbeat') return;
+
+        if (msg.type === 'log') {
+          const text = msg.msg || '';
+          // Parse record-count progress from pipeline log lines
+          const m = text.match(/Processed\s+([\d,]+)\s+records/);
+          if (m) {
+            const count = parseInt(m[1].replace(/,/g, ''), 10);
+            document.getElementById('counter-text').textContent =
+              count.toLocaleString() + ' records';
+            // Advance progress bar gradually (no known total — use asymptotic fill)
+            const bar = document.getElementById('progress-bar');
+            const cur = parseFloat(bar.style.width) || 2;
+            bar.style.width = Math.min(90, cur + 3) + '%';
+          }
+          // Colour by level / content
+          let cls = 'text-gray-400';
+          if (msg.level === 'WARNING') cls = 'text-yellow-300';
+          if (msg.level === 'ERROR')   cls = 'text-red-400';
+          if (/Pipeline initialised|Scanning|Loading/i.test(text)) cls = 'text-blue-300';
+          appendLog(text, cls);
+          return;
+        }
+
+        if (msg.type === 'done') {
+          sse.close();
+          const s = msg.summary || {};
+          document.getElementById('progress-bar').style.width = '100%';
+          const total = s.total_processed || 0;
+          document.getElementById('counter-text').textContent =
+            total.toLocaleString() + ' records processed';
+          setStatus('Done', 'bg-emerald-400', false);
+          appendLog('✓ Pipeline complete!', 'text-emerald-400');
+
+          // Fill stats
+          const flagged = s.total_flagged || 0;
+          document.getElementById('stat-total').textContent    = total.toLocaleString();
+          document.getElementById('stat-flagged').textContent  = flagged.toLocaleString();
+          document.getElementById('stat-porn').textContent     = (s.total_porn || 0).toLocaleString();
+          document.getElementById('stat-clean').textContent    = Math.max(0, total - flagged).toLocaleString();
+          document.getElementById('stat-race').textContent     = (s.total_3r_race || 0).toLocaleString();
+          document.getElementById('stat-religion').textContent = (s.total_3r_religion || 0).toLocaleString();
+          document.getElementById('stat-royalty').textContent  = (s.total_3r_royalty || 0).toLocaleString();
+
+          const elapsed = (s.elapsed_seconds || 0).toFixed(1);
+          const thr     = Math.round(s.throughput_records_per_sec || 0);
+          const dev     = s.device || 'cpu';
+          document.getElementById('stat-perf').textContent =
+            `Finished in ${elapsed}s  ·  ${thr.toLocaleString()} rec/s  ·  device: ${dev}`;
+
+          // Download links
+          document.getElementById('dl-cleaned').href =
+            '/download/' + currentJobId + '/cleaned';
+          document.getElementById('dl-csv').href =
+            '/download/' + currentJobId + '/flagged_csv';
+          document.getElementById('dl-jsonl').href =
+            '/download/' + currentJobId + '/flagged_jsonl';
+
+          document.getElementById('results-panel').classList.remove('hidden');
+          document.getElementById('run-btn').disabled = false;
+          document.getElementById('run-text').textContent = 'Run Again';
+          return;
+        }
+
+        if (msg.type === 'error') {
+          sse.close();
+          setStatus('Error', 'bg-red-500', false);
+          appendLog('✗ ' + (msg.msg || 'Unknown error'), 'text-red-400');
+          document.getElementById('progress-bar').style.background = '#ef4444';
+          document.getElementById('run-btn').disabled = false;
+          document.getElementById('run-text').textContent = 'Run Pipeline';
+          return;
+        }
+      };
+
+      sse.onerror = function () {
+        if (sse.readyState === EventSource.CLOSED) return;
+        setStatus('Connection lost', 'bg-red-500', false);
+        appendLog(
+          'SSE connection dropped — the job may still be running on the server.',
+          'text-yellow-300'
+        );
+      };
+    }
+  </script>
+
+</body>
+</html>
