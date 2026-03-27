@@ -36,6 +36,35 @@ TEST_RECORDS = [
     (True,  [],            "Dia suka menonton xvideos dan pornhub setiap malam."),
 ]
 
+# ---------------------------------------------------------------------------
+# Autonomous verification test cases for 3R-Race
+# These test that the verification layer correctly rescues false positives
+# while still catching true hate speech.
+# ---------------------------------------------------------------------------
+VERIFICATION_TESTS = [
+    # (should_be_flagged, description, text)
+
+    # TRUE POSITIVES — should remain flagged after verification
+    (True,  "explicit slur bigram",
+     "Cina babi semua balik China, tak payah duduk sini!"),
+    (True,  "targeted racial insult",
+     "Orang melayu ni memang bodoh, tak boleh maju langsung."),
+    (True,  "racial violence incitement",
+     "Kill all chinese pendatang, deport them from our country!"),
+
+    # FALSE POSITIVES — should be RESCUED by verification (not flagged)
+    (False, "academic study about racism",
+     "Kajian universiti mengenai isu racist di sekolah menengah menunjukkan penyelidikan data yang positif."),
+    (False, "news report about racial harmony",
+     "Menurut laporan Bernama, program perpaduan kaum di sekolah menunjukkan kesan positif bagi toleransi."),
+    (False, "historical commemoration",
+     "Peristiwa 13 Mei diperingati di muzium negara sebagai peringatan sejarah bersejarah untuk pendidikan."),
+    (False, "parliament policy discussion",
+     "Perlembagaan menjamin hak ketuanan melayu dalam konteks parlimen dan undang-undang negara."),
+    (False, "positive diversity celebration",
+     "Sambutan perayaan muhibbah meraikan kepelbagaian kaum dan perpaduan di Malaysia dengan penuh keharmonian."),
+]
+
 
 def run_tests():
     porn_det = PornDetector(use_ml=False)
@@ -91,6 +120,47 @@ def run_tests():
         return failed == 0
 
 
+def run_verification_tests():
+    """Test the autonomous race-flag verification layer."""
+    three_r_det = ThreeRDetector(use_ml=False)
+
+    passed = 0
+    failed = 0
+
+    print("\n" + "="*70)
+    print("3R-RACE AUTONOMOUS VERIFICATION TESTS")
+    print("="*70 + "\n")
+
+    for should_flag, desc, text in VERIFICATION_TESTS:
+        result = three_r_det.detect(text)
+        actual_flagged = result.race_flagged
+
+        ok = actual_flagged == should_flag
+        status = "PASS" if ok else "FAIL"
+
+        if ok:
+            passed += 1
+        else:
+            failed += 1
+
+        verified_str = ""
+        if result.race_verified is not None:
+            verified_str = f" verified={result.race_verified} reason={result.verification_reason}"
+
+        indicator = "✓" if ok else "✗"
+        print(f"  [{status}] {indicator} {desc}")
+        print(f"         expected_flag={should_flag} actual_flag={actual_flagged}{verified_str}")
+        if result.race_matches:
+            print(f"         matches={result.race_matches[:4]}")
+        if not ok:
+            print(f"         TEXT: {text[:120]}")
+        print()
+
+    print(f"Verification tests: {passed} passed, {failed} failed out of {len(VERIFICATION_TESTS)}")
+    return failed == 0
+
+
 if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+    success1 = run_tests()
+    success2 = run_verification_tests()
+    sys.exit(0 if (success1 and success2) else 1)
