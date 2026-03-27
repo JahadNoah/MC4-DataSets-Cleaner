@@ -36,6 +36,46 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_MB * 1024 * 1024
 JOBS: dict[str, dict] = {}
 
 # ---------------------------------------------------------------------------
+# Global job queue — jobs are processed one at a time by a worker thread
+# ---------------------------------------------------------------------------
+
+JOB_QUEUE: list[str] = []          # ordered list of job_ids waiting to run
+_JOB_QUEUE_LOCK = threading.Lock()
+_JOB_QUEUE_EVENT = threading.Event()  # signals the worker that a new job arrived
+
+
+def _queue_worker() -> None:
+    """Background thread: pops jobs from JOB_QUEUE and runs them sequentially."""
+    while True:
+        _JOB_QUEUE_EVENT.wait()
+        _JOB_QUEUE_EVENT.clear()
+        while True:
+            with _JOB_QUEUE_LOCK:
+                if not JOB_QUEUE:
+                    break
+                job_id = JOB_QUEUE[0]  # peek, don't pop yet
+
+            job = JOBS.get(job_id)
+            if job is None or job["status"] == "cancelled":
+                with _JOB_QUEUE_LOCK:
+                    if JOB_QUEUE and JOB_QUEUE[0] == job_id:
+                        JOB_QUEUE.pop(0)
+                continue
+
+            # Mark as running
+            job["status"] = "running"
+            _run_job(job_id, job["input_path"], job["opts"])
+
+            # Remove from queue after completion
+            with _JOB_QUEUE_LOCK:
+                if JOB_QUEUE and JOB_QUEUE[0] == job_id:
+                    JOB_QUEUE.pop(0)
+
+
+_worker_thread = threading.Thread(target=_queue_worker, daemon=True, name="queue-worker")
+_worker_thread.start()
+
+# ---------------------------------------------------------------------------
 # Logging → SSE bridge
 # ---------------------------------------------------------------------------
 
@@ -157,18 +197,20 @@ def clean():
 
     JOBS[job_id] = {
         "queue": queue.Queue(maxsize=5000),
-        "status": "running",
+        "status": "queued",
         "summary": None,
         "output_dir": str(Path("output") / job_id),
         "filename": safe_name,
+        "input_path": str(input_path),
+        "opts": opts,
     }
 
-    thread = threading.Thread(
-        target=_run_job, args=(job_id, str(input_path), opts), daemon=True
-    )
-    thread.start()
+    with _JOB_QUEUE_LOCK:
+        JOB_QUEUE.append(job_id)
+    _JOB_QUEUE_EVENT.set()
 
-    return jsonify({"job_id": job_id})
+    queue_pos = JOB_QUEUE.index(job_id) + 1 if job_id in JOB_QUEUE else 1
+    return jsonify({"job_id": job_id, "queue_position": queue_pos})
 
 
 @app.route("/progress/<job_id>")
@@ -220,6 +262,191 @@ def download(job_id: str, kind: str):
 
     return send_file(
         str(target.resolve()), as_attachment=True, download_name=target.name
+    )
+
+
+# ---------------------------------------------------------------------------
+# Queue management endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.route("/queue")
+def queue_status():
+    """Return full queue state: waiting, running, and recently finished jobs."""
+    with _JOB_QUEUE_LOCK:
+        waiting = list(JOB_QUEUE)
+
+    rows = []
+    for job_id, job in JOBS.items():
+        queue_pos = waiting.index(job_id) + 1 if job_id in waiting else None
+        rows.append({
+            "job_id": job_id,
+            "filename": job.get("filename", ""),
+            "status": job["status"],
+            "queue_position": queue_pos,
+            "summary": job.get("summary"),
+        })
+    # Sort: running first, then queued by position, then done/error/cancelled by recency
+    def sort_key(r):
+        s = r["status"]
+        if s == "running":    return (0, 0)
+        if s == "queued":     return (1, r["queue_position"] or 99)
+        if s == "done":       return (2, 0)
+        if s == "error":      return (3, 0)
+        return (4, 0)
+    rows.sort(key=sort_key)
+    return jsonify({"jobs": rows, "queue_length": len(waiting)})
+
+
+@app.route("/queue/cancel/<job_id>", methods=["POST"])
+def cancel_job(job_id: str):
+    """Cancel a queued (not yet running) job."""
+    if job_id not in JOBS:
+        return jsonify({"error": "Job not found"}), 404
+    job = JOBS[job_id]
+    if job["status"] != "queued":
+        return jsonify({"error": f"Cannot cancel a job with status '{job['status']}'"}), 400
+
+    job["status"] = "cancelled"
+    with _JOB_QUEUE_LOCK:
+        if job_id in JOB_QUEUE:
+            JOB_QUEUE.remove(job_id)
+    job["queue"].put({"type": "error", "msg": "Job cancelled by user."})
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Review endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.route("/flagged/<job_id>")
+def flagged_records(job_id: str):
+    """Return paginated, filterable flagged records for a completed job."""
+    if job_id not in JOBS:
+        return jsonify({"error": "Job not found"}), 404
+    job = JOBS[job_id]
+    if job["status"] != "done":
+        return jsonify({"error": "Job not complete"}), 400
+
+    flagged_path = Path(job["output_dir"]) / "reports" / "flagged.jsonl"
+    if not flagged_path.exists():
+        return jsonify({"records": [], "total": 0, "page": 1, "total_pages": 0})
+
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+        per_page = max(1, min(int(request.args.get("per_page", 20)), 100))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid pagination params"}), 400
+
+    filter_type = request.args.get("filter", "all")
+    search = request.args.get("q", "").lower().strip()
+
+    records: list[dict] = []
+    with open(flagged_path, encoding="utf-8") as fh:
+        for raw in fh:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                records.append(json.loads(raw))
+            except json.JSONDecodeError:
+                pass
+
+    if filter_type == "porn":
+        records = [r for r in records if r.get("is_porn")]
+    elif filter_type == "3r":
+        records = [r for r in records if r.get("is_sensitive_3r")]
+    elif filter_type == "race":
+        records = [r for r in records if "race" in r.get("three_r_categories", [])]
+    elif filter_type == "religion":
+        records = [r for r in records if "religion" in r.get("three_r_categories", [])]
+    elif filter_type == "royalty":
+        records = [r for r in records if "royalty" in r.get("three_r_categories", [])]
+
+    if search:
+        records = [r for r in records if search in r.get("text_preview", "").lower()]
+
+    total = len(records)
+    start = (page - 1) * per_page
+    return jsonify({
+        "records": records[start: start + per_page],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": max(1, (total + per_page - 1) // per_page) if total else 0,
+    })
+
+
+@app.route("/reapply/<job_id>", methods=["POST"])
+def reapply(job_id: str):
+    """Re-generate cleaned file honouring user keep/remove decisions."""
+    if job_id not in JOBS:
+        return jsonify({"error": "Job not found"}), 404
+    job = JOBS[job_id]
+    if job["status"] != "done":
+        return jsonify({"error": "Job not complete"}), 400
+
+    data = request.get_json(silent=True) or {}
+    try:
+        keep_lines: set[int] = {int(x) for x in data.get("keep_lines", [])}
+    except (ValueError, TypeError):
+        return jsonify({"error": "keep_lines must be a list of integers"}), 400
+
+    input_path = job.get("input_path")
+    if not input_path or not Path(input_path).exists():
+        return jsonify({"error": "Original input file not found on server"}), 404
+
+    flagged_path = Path(job["output_dir"]) / "reports" / "flagged.jsonl"
+    flagged_line_nos: set[int] = set()
+    if flagged_path.exists():
+        with open(flagged_path, encoding="utf-8") as fh:
+            for raw in fh:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    flagged_line_nos.add(int(json.loads(raw)["line_no"]))
+                except (json.JSONDecodeError, KeyError, ValueError):
+                    pass
+
+    remove_lines = flagged_line_nos - keep_lines
+    out_dir = Path(job["output_dir"])
+    stem = Path(job["filename"]).stem
+    custom_path = out_dir / f"{stem}_custom_cleaned.jsonl"
+
+    from pipeline import _iter_local_jsonl  # local import
+
+    count_written = 0
+    with open(custom_path, "w", encoding="utf-8") as out_fh:
+        for line_no, _dataset_id, text in _iter_local_jsonl(input_path):
+            if line_no not in remove_lines:
+                out_fh.write(json.dumps({"text": text}, ensure_ascii=False) + "\n")
+                count_written += 1
+
+    job["custom_clean_path"] = str(custom_path)
+    job["custom_clean_name"] = custom_path.name
+    return jsonify({
+        "records_written": count_written,
+        "records_removed": len(remove_lines),
+        "download_url": f"/download-custom/{job_id}",
+        "filename": custom_path.name,
+    })
+
+
+@app.route("/download-custom/<job_id>")
+def download_custom(job_id: str):
+    """Serve the custom-cleaned file."""
+    if job_id not in JOBS:
+        return jsonify({"error": "Job not found"}), 404
+    job = JOBS[job_id]
+    path = job.get("custom_clean_path")
+    if not path or not Path(path).exists():
+        return jsonify({"error": "Custom cleaned file not ready"}), 404
+    return send_file(
+        str(Path(path).resolve()),
+        as_attachment=True,
+        download_name=job.get("custom_clean_name", "custom_cleaned.jsonl"),
     )
 
 
