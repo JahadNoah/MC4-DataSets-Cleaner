@@ -1,8 +1,14 @@
 # English explicit/pornographic keywords and phrases
 # Format: one pattern per line; lines starting with # are comments
 # Regex-compatible patterns supported
+# Last reviewed: 2026 — improved for mC4 dataset filtering
 
-# Direct sexual acts
+# ─────────────────────────────────────────────
+# DIRECT SEXUAL ACTS
+# Removed: \banal\b (too generic - medical/grammatical use),
+#           \bcp\b (extremely noisy - initialism for many things),
+#           \bbang\b (too generic), \bboink\b (rare/unusual)
+# ─────────────────────────────────────────────
 \bsex\b
 \bsexual\b
 \bporn\b
@@ -17,7 +23,8 @@
 \bnudity\b
 \bintercourse\b
 \bsexual intercourse\b
-\banal\b
+\banal sex\b
+\banal intercourse\b
 \boral sex\b
 \bblowjob\b
 \bhandjob\b
@@ -32,17 +39,31 @@
 \bsodomy\b
 \bpedophilia\b
 \bchild pornography\b
-\bcp\b
+\bchild sexual abuse\b
 \blolicon\b
 \bshota\b
+\bsex tape\b
+\bsex scene\b
+\bsex act\b
+\bsex video\b
+\bsex chat\b
+\blive sex\b
+\bsexual content\b
+\badult content\b
+\badult video\b
+\badult site\b
 
-# Body parts (explicit)
+# ─────────────────────────────────────────────
+# BODY PARTS (explicit)
+# Removed: \bbuttocks\b (medical/clinical term),
+#           \bass\b (extremely noisy - pronoun, musical term, etc.)
+#           \bbutt\b (too generic in casual speech)
+# ─────────────────────────────────────────────
 \bpenis\b
 \bvagina\b
 \bvulva\b
 \bclitoris\b
 \banus\b
-\bbuttocks\b
 \bbreasts?\b
 \bnipples?\b
 \btesticles?\b
@@ -54,23 +75,28 @@
 \bsex toy\b
 \bdildo\b
 \bvibrator\b
+\bboner\b
+\bboobs\b
+\btits\b
 
-# Slang / profanity (explicit)
+# ─────────────────────────────────────────────
+# SLANG / PROFANITY (explicit)
+# Removed: \bnaughty\b (too generic - children's content, etc.),
+#           \blingerie\b (fashion/retail term),
+#           \basshole\b (used as general insult, not porn-specific)
+# ─────────────────────────────────────────────
 \bfuck\b
 \bfucking\b
 \bfucked\b
 \bfucker\b
+\bmotherfucker\b
 \bshag\b
-\bbang\b
-\bboink\b
-\bboner\b
 \bdick\b
 \bcock\b
 \bpussy\b
 \bcunt\b
 \bwhore\b
 \bslut\b
-\bbitch\b
 \bhorny\b
 \bsexting\b
 \bstripping\b
@@ -81,36 +107,54 @@
 \bsex worker\b
 \bonlyfans\b
 \bcamgirl\b
-\blive sex\b
-\bsex chat\b
-\bsex video\b
-\bporn hub\b
-\bpornhub\b
-\bxvideos\b
-\bxhamster\b
-\bxnxx\b
-\bredtube\b
-\byouporn\b
-\bmotherfucker\b
-\basshole\b
-\bboobs\b
-\btits\b
-\bass\b
-\bbutt\b
-\bnaughty\b
+\bcamboy\b
+\bstrip club\b
 \bkinky\b
 \bfetish\b
 \bbdsm\b
 \bdomination\b
 \bsubmission\b
-\bsex scene\b
-\bsex act\b
-\bsex tape\b
 \bnude photo\b
 \bnude video\b
-\bsexual content\b
-\badult content\b
-\badult video\b
-\badult site\b
-\bstrip club\b
-\blingerie\b
+
+# ─────────────────────────────────────────────
+# KNOWN ADULT PLATFORMS / SITES
+# ─────────────────────────────────────────────
+\bpornhub\b
+\bporn hub\b
+\bxvideos\b
+\bxhamster\b
+\bxnxx\b
+\bredtube\b
+\byouporn\b
+\bbrazzers\b
+\bsexyhub\b
+\bnaughtyamerica\b
+
+# ─────────────────────────────────────────────
+# ADDED: MISSING PATTERNS (cross-referenced from porn_bm.txt)
+# ─────────────────────────────────────────────
+\bsex trafficking\b
+\bchild abuse material\b
+\bcam site\b
+\blive cam\b
+\bnude model\b
+\bglory hole\b
+\bfull nudity\b
+\bexplicit content\b
+\bhardcore porn\b
+\bsoftcore porn\b
+\bhentai\b
+\bfap\b
+\bjerkoff\b
+\bjerk off\b
+\bcock sucking\b
+\btitjob\b
+\bhandjob video\b
+\bporn clip\b
+\bsex clip\b
+\bdeepfake porn\b
+\bai porn\b
+\bteen porn\b
+\bamateur porn\b
+\bsex offend\b
