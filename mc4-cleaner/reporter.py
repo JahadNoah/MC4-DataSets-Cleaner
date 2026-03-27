@@ -80,6 +80,8 @@ class FlaggedRecord:
     religion_keywords: list[str]
     royalty_keywords: list[str]
     three_r_ml_scores: dict[str, float]
+    race_verified: Optional[bool] = None
+    verification_reason: str = ""
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
     def to_dict(self) -> dict:
@@ -97,6 +99,8 @@ class FlaggedRecord:
             "religion_keywords": self.religion_keywords,
             "royalty_keywords": self.royalty_keywords,
             "three_r_ml_scores": self.three_r_ml_scores,
+            "race_verified": self.race_verified,
+            "verification_reason": self.verification_reason,
             "text_preview": self.text[:300],
         }
 
@@ -206,6 +210,8 @@ class Reporter:
             religion_keywords=three_r_result.religion_matches if three_r_result else [],
             royalty_keywords=three_r_result.royalty_matches if three_r_result else [],
             three_r_ml_scores=three_r_result.ml_scores if three_r_result else {},
+            race_verified=getattr(three_r_result, "race_verified", None),
+            verification_reason=getattr(three_r_result, "verification_reason", ""),
         )
 
         self._records.append(record)
