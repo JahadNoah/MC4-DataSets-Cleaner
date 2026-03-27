@@ -421,6 +421,8 @@ class _DictResult3R:
         self.religion_matches: list[str] = d.get("religion_matches", [])
         self.royalty_matches: list[str] = d.get("royalty_matches", [])
         self.ml_scores: dict = d.get("ml_scores", {})
+        self.race_verified: bool | None = d.get("race_verified")
+        self.verification_reason: str = d.get("verification_reason", "")
 
     @property
     def categories(self) -> list[str]:
