@@ -19,8 +19,11 @@
     }
     .pulse-dot { animation: pulseDot 1.5s ease-in-out infinite; }
     @keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:0.25} }
-    /* smooth thumb slide */
     .toggle-thumb { transition: left 0.18s ease-in-out; }
+    .queue-row-running { border-color: rgba(59,130,246,0.4) !important; }
+    .queue-row-done    { border-color: rgba(52,211,153,0.3) !important; }
+    .queue-row-error   { border-color: rgba(239,68,68,0.3) !important; }
+    .queue-row-cancelled { opacity: 0.45; }
   </style>
 </head>
 <body class="text-gray-100 min-h-screen">
@@ -37,6 +40,13 @@
           Malaysian Content-4 Dataset Cleaning Pipeline
         </p>
       </div>
+      <!-- Queue badge -->
+      <div class="ml-auto flex items-center gap-2">
+        <span id="hdr-queue-badge" class="hidden px-2.5 py-1 rounded-full text-xs font-semibold"
+              style="background:rgba(59,130,246,0.18);color:#60a5fa">
+          <span id="hdr-queue-count">0</span> in queue
+        </span>
+      </div>
     </div>
   </header>
 
@@ -46,7 +56,7 @@
     <!-- ── Left column (controls) ──────────────────────────────────── -->
     <div class="lg:col-span-2 flex flex-col gap-5">
 
-      <!-- Drop zone -->
+      <!-- Drop zone (multi-file) -->
       <div id="drop-zone"
            class="glass rounded-2xl p-8 text-center border-2 border-dashed border-white/15
                   cursor-pointer select-none transition-all duration-200
@@ -55,42 +65,35 @@
            ondragover="onDragOver(event)"
            ondragleave="onDragLeave(event)"
            ondrop="onDrop(event)">
-        <input id="file-input" type="file" class="hidden"
+        <input id="file-input" type="file" class="hidden" multiple
                accept=".jsonl,.json,.txt" onchange="onFileSelect(event)">
 
-        <!-- Empty state -->
-        <div id="dz-empty">
-          <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-               style="background:rgba(59,130,246,0.15)">
-            <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011
-                       9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-            </svg>
-          </div>
-          <p class="font-semibold text-white text-sm">Drop your JSONL file here</p>
-          <p class="text-gray-500 text-xs mt-1">or click to browse</p>
-          <p class="text-gray-600 text-xs mt-4 tracking-wide">
-            .jsonl &nbsp;·&nbsp; .json &nbsp;·&nbsp; .txt
-          </p>
+        <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+             style="background:rgba(59,130,246,0.15)">
+          <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011
+                     9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
         </div>
+        <p class="font-semibold text-white text-sm">Drop files here</p>
+        <p class="text-gray-500 text-xs mt-1">or click to browse — multiple files supported</p>
+        <p class="text-gray-600 text-xs mt-4 tracking-wide">
+          .jsonl &nbsp;·&nbsp; .json &nbsp;·&nbsp; .txt
+        </p>
+      </div>
 
-        <!-- File selected state -->
-        <div id="dz-selected" class="hidden">
-          <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-               style="background:rgba(16,185,129,0.15)">
-            <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <p id="dz-filename" class="font-semibold text-white text-sm break-all"></p>
-          <p id="dz-filesize" class="text-gray-400 text-xs mt-1"></p>
-          <button id="dz-clear"
-                  class="mt-3 text-xs text-gray-600 hover:text-red-400 transition-colors"
-                  onclick="clearFile(event)">✕ Remove file</button>
+      <!-- Staged files (selected, not yet queued) -->
+      <div id="staged-panel" class="hidden glass rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">
+            Selected Files
+          </h2>
+          <button class="text-xs text-gray-600 hover:text-red-400 transition-colors"
+                  onclick="clearStaged()">Clear all</button>
         </div>
-      </div><!-- /drop-zone -->
+        <ul id="staged-list" class="space-y-1.5 max-h-48 overflow-y-auto"></ul>
+      </div>
 
       <!-- Options panel -->
       <div class="glass rounded-2xl p-5 space-y-4">
@@ -98,9 +101,7 @@
           Detection Options
         </h2>
 
-        <!-- Toggle rows -->
         <div class="space-y-3">
-
           <!-- Porn detection -->
           <div class="flex items-center justify-between">
             <span class="text-sm text-gray-200">Porn Detection</span>
@@ -142,10 +143,9 @@
                     style="left:2px"></span>
             </button>
           </div>
-        </div><!-- /toggles -->
+        </div>
 
         <div class="border-t border-white/8 pt-4 grid grid-cols-2 gap-4">
-          <!-- Workers -->
           <div>
             <label class="text-xs text-gray-500 block mb-1.5">
               Workers <span class="text-gray-700">(0 = single)</span>
@@ -155,8 +155,6 @@
                           border-white/10 text-white focus:outline-none
                           focus:border-blue-500 transition-colors">
           </div>
-
-          <!-- ML threshold (disabled until ML toggled on) -->
           <div id="ml-thresh-wrap"
                class="opacity-30 pointer-events-none transition-opacity duration-200">
             <label class="text-xs text-gray-500 block mb-1.5">
@@ -169,25 +167,40 @@
                              parseFloat(this.value).toFixed(2)">
           </div>
         </div>
-      </div><!-- /options -->
+      </div>
 
-      <!-- Run button -->
-      <button id="run-btn" disabled
+      <!-- Add to Queue button -->
+      <button id="enqueue-btn" disabled
               class="w-full py-3.5 rounded-xl font-semibold text-sm text-white
                      transition-all duration-200 focus:outline-none
                      disabled:opacity-30 disabled:cursor-not-allowed"
               style="background:linear-gradient(135deg,#3b82f6,#06b6d4);
                      box-shadow:0 4px 24px rgba(59,130,246,0.25)"
-              onclick="startJob()">
-        <span id="run-text">Select a file to begin</span>
+              onclick="enqueueAll()">
+        <span id="enqueue-text">Select files to begin</span>
       </button>
 
     </div><!-- /left col -->
 
-    <!-- ── Right column (log + results) ────────────────────────────── -->
+    <!-- ── Right column (queue + log) ───────────────────────────────── -->
     <div class="lg:col-span-3 flex flex-col gap-5">
 
-      <!-- Log panel -->
+      <!-- Job Queue panel -->
+      <div class="glass rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">
+            Processing Queue
+          </h2>
+          <span id="queue-summary" class="text-xs text-gray-600">—</span>
+        </div>
+        <div id="queue-list" class="space-y-2 max-h-72 overflow-y-auto">
+          <p class="text-center text-gray-700 italic py-6 text-sm">
+            No jobs yet — add files above to begin.
+          </p>
+        </div>
+      </div>
+
+      <!-- Log panel (for the currently selected / running job) -->
       <div class="glass rounded-2xl p-5 flex flex-col gap-3">
         <div class="flex items-center justify-between">
           <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">
@@ -196,16 +209,14 @@
           <div class="flex items-center gap-2">
             <span id="status-dot" class="w-2 h-2 rounded-full bg-gray-700"></span>
             <span id="status-label" class="text-xs text-gray-600">Idle</span>
+            <span id="log-for-file" class="text-xs text-gray-700 ml-1"></span>
           </div>
         </div>
-
-        <!-- Progress bar + counter -->
         <div id="counter-wrap" class="hidden">
           <div class="flex items-center gap-3">
             <div class="h-1.5 flex-1 bg-gray-800 rounded-full overflow-hidden">
               <div id="progress-bar" class="h-full rounded-full transition-all duration-500"
-                   style="width:2%;background:linear-gradient(90deg,#3b82f6,#06b6d4)">
-              </div>
+                   style="width:2%;background:linear-gradient(90deg,#3b82f6,#06b6d4)"></div>
             </div>
             <span id="counter-text"
                   class="text-xs text-gray-400 whitespace-nowrap shrink-0 w-32 text-right">
@@ -213,22 +224,18 @@
             </span>
           </div>
         </div>
-
-        <!-- Log output -->
         <div id="log-box"
-             class="h-72 overflow-y-auto rounded-xl p-3 text-xs leading-relaxed space-y-0.5"
+             class="h-56 overflow-y-auto rounded-xl p-3 text-xs leading-relaxed space-y-0.5"
              style="background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.05)">
-          <p class="text-gray-700 italic">Waiting for a job to start…</p>
+          <p class="text-gray-700 italic">Click a job row to view its log…</p>
         </div>
-      </div><!-- /log panel -->
+      </div>
 
-      <!-- Results panel (hidden until done) -->
+      <!-- Results panel (shown for the viewed job when done) -->
       <div id="results-panel" class="hidden glass rounded-2xl p-5 space-y-4">
         <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">
           Results
         </h2>
-
-        <!-- Main stats grid -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div class="rounded-xl p-4 text-center" style="background:rgba(255,255,255,0.04)">
             <p id="stat-total" class="text-2xl font-bold text-white">—</p>
@@ -247,8 +254,6 @@
             <p class="text-xs text-gray-500 mt-1">Clean</p>
           </div>
         </div>
-
-        <!-- 3R breakdown -->
         <div>
           <p class="text-xs text-gray-600 mb-2 uppercase tracking-wider">3R Breakdown</p>
           <div class="grid grid-cols-3 gap-2">
@@ -266,11 +271,7 @@
             </div>
           </div>
         </div>
-
-        <!-- Perf line -->
         <p id="stat-perf" class="text-xs text-gray-600 text-center"></p>
-
-        <!-- Download buttons -->
         <div class="grid grid-cols-3 gap-2">
           <a id="dl-cleaned" href="#" download
              class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl
@@ -309,56 +310,190 @@
             Flagged JSONL
           </a>
         </div>
-      </div><!-- /results panel -->
+        <button onclick="openReview()"
+                class="w-full py-2.5 rounded-xl text-sm font-medium transition-all
+                       border border-white/10 text-gray-400
+                       hover:border-blue-500/40 hover:text-blue-300">
+          🔍 Review Flagged Records Before Cleaning
+        </button>
+      </div>
 
     </div><!-- /right col -->
+  </main>
 
-  </main><!-- /main -->
+  <!-- ── Review section (full width) ──────────────────────────────────── -->
+  <section id="review-section" class="hidden max-w-6xl mx-auto px-6 pb-12">
+    <div class="glass rounded-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 class="text-sm font-semibold text-white">Review Flagged Records</h2>
+          <p class="text-xs text-gray-500 mt-0.5">
+            Every record below was flagged. Toggle any record to
+            <span class="text-emerald-400 font-medium">Keep</span> if it is a false positive,
+            then click <em class="text-blue-300">Apply Custom Clean</em>.
+          </p>
+        </div>
+        <span id="rv-count" class="text-xs text-gray-600 whitespace-nowrap">—</span>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.08)">
+          <button class="rv-tab px-3 py-1.5 text-xs font-medium transition-colors
+                         bg-blue-600/30 text-blue-300"
+                  data-filter="all" onclick="setFilterTab('all')">All</button>
+          <button class="rv-tab px-3 py-1.5 text-xs font-medium transition-colors text-gray-500"
+                  style="border-left:1px solid rgba(255,255,255,0.08)"
+                  data-filter="porn" onclick="setFilterTab('porn')">Porn</button>
+          <button class="rv-tab px-3 py-1.5 text-xs font-medium transition-colors text-gray-500"
+                  style="border-left:1px solid rgba(255,255,255,0.08)"
+                  data-filter="3r" onclick="setFilterTab('3r')">3R</button>
+          <button class="rv-tab px-3 py-1.5 text-xs font-medium transition-colors text-gray-500"
+                  style="border-left:1px solid rgba(255,255,255,0.08)"
+                  data-filter="race" onclick="setFilterTab('race')">Race</button>
+          <button class="rv-tab px-3 py-1.5 text-xs font-medium transition-colors text-gray-500"
+                  style="border-left:1px solid rgba(255,255,255,0.08)"
+                  data-filter="religion" onclick="setFilterTab('religion')">Religion</button>
+          <button class="rv-tab px-3 py-1.5 text-xs font-medium transition-colors text-gray-500"
+                  style="border-left:1px solid rgba(255,255,255,0.08)"
+                  data-filter="royalty" onclick="setFilterTab('royalty')">Royalty</button>
+        </div>
+        <input type="search" id="rv-search" placeholder="Search text…"
+               class="flex-1 min-w-0 rounded-xl px-3 py-1.5 text-sm bg-gray-900
+                      border border-white/10 text-white placeholder-gray-700
+                      focus:outline-none focus:border-blue-500 transition-colors"
+               oninput="onSearchInput(this.value)">
+        <span id="rv-keep-count" class="text-xs text-emerald-400 whitespace-nowrap"
+              title="Records you chose to keep (false positives)">0 kept</span>
+      </div>
+      <div id="rv-cards" class="grid grid-cols-1 xl:grid-cols-2 gap-3"
+           style="min-height:8rem">
+        <p class="text-center text-gray-700 italic py-10 col-span-full">
+          Record cards will load here…
+        </p>
+      </div>
+      <div class="flex items-center justify-between gap-4">
+        <button id="rv-prev" disabled
+                class="px-4 py-1.5 rounded-xl text-sm border border-white/10 text-gray-400
+                       hover:border-blue-500/40 hover:text-white transition-colors
+                       disabled:opacity-30 disabled:cursor-not-allowed"
+                onclick="prevPage()">← Prev</button>
+        <span id="rv-page-info" class="text-xs text-gray-600">—</span>
+        <button id="rv-next" disabled
+                class="px-4 py-1.5 rounded-xl text-sm border border-white/10 text-gray-400
+                       hover:border-blue-500/40 hover:text-white transition-colors
+                       disabled:opacity-30 disabled:cursor-not-allowed"
+                onclick="nextPage()">Next →</button>
+      </div>
+      <div class="border-t border-white/8 pt-4 flex items-center gap-4 flex-wrap">
+        <button id="rv-apply-btn"
+                class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+                style="background:linear-gradient(135deg,#3b82f6,#06b6d4);
+                       box-shadow:0 4px 20px rgba(59,130,246,0.2)"
+                onclick="applyCustomClean()">
+          Apply Custom Clean
+        </button>
+        <p class="text-xs text-gray-600">
+          Records still set to ✕ Remove will be excluded from the output.
+        </p>
+        <div id="rv-apply-result" class="hidden w-full flex items-center gap-3 flex-wrap pt-1">
+          <span id="rv-apply-msg" class="text-sm"></span>
+          <a id="rv-dl-custom" href="#"
+             class="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5
+                    transition-colors"
+             style="background:rgba(16,185,129,0.15);color:#34d399"
+             onmouseover="this.style.background='rgba(16,185,129,0.27)'"
+             onmouseout="this.style.background='rgba(16,185,129,0.15)'">
+            ↓ Download Custom Cleaned JSONL
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- ── JavaScript ──────────────────────────────────────────────────── -->
   <script>
     'use strict';
 
     // ── State ─────────────────────────────────────────────────────────
-    let selectedFile = null;
-    let currentJobId = null;
-    let sse = null;
+    let stagedFiles   = [];   // File objects selected but not yet enqueued
+    let viewedJobId   = null; // job currently shown in log/results panel
+    let sseMap        = {};   // job_id -> EventSource
+    let logCache      = {};   // job_id -> [{text,cls}]
+    let queuePollTimer = null;
 
-    // ── File handling ──────────────────────────────────────────────────
-    function formatBytes(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-      if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
-      return (bytes / 1073741824).toFixed(2) + ' GB';
+    // ── Helpers ────────────────────────────────────────────────────────
+    function formatBytes(b) {
+      if (b < 1024)       return b + ' B';
+      if (b < 1048576)    return (b/1024).toFixed(1) + ' KB';
+      if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
+      return (b/1073741824).toFixed(2) + ' GB';
+    }
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    function setFile(file) {
-      if (!file) return;
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!['jsonl', 'json', 'txt'].includes(ext)) {
-        alert('Unsupported file type.\nPlease use .jsonl, .json, or .txt');
+    // ── Staged file handling ───────────────────────────────────────────
+    function addFiles(fileList) {
+      const allowed = ['jsonl','json','txt'];
+      let added = 0;
+      for (const f of fileList) {
+        const ext = f.name.split('.').pop().toLowerCase();
+        if (!allowed.includes(ext)) continue;
+        if (stagedFiles.some(x => x.name === f.name && x.size === f.size)) continue;
+        stagedFiles.push(f);
+        added++;
+      }
+      renderStaged();
+      if (added === 0 && fileList.length > 0) {
+        alert('No supported files found.\nPlease use .jsonl, .json, or .txt');
+      }
+    }
+
+    function renderStaged() {
+      const panel = document.getElementById('staged-panel');
+      const list  = document.getElementById('staged-list');
+      const btn   = document.getElementById('enqueue-btn');
+      const txt   = document.getElementById('enqueue-text');
+
+      if (stagedFiles.length === 0) {
+        panel.classList.add('hidden');
+        btn.disabled = true;
+        txt.textContent = 'Select files to begin';
         return;
       }
-      selectedFile = file;
-      document.getElementById('dz-filename').textContent = file.name;
-      document.getElementById('dz-filesize').textContent = formatBytes(file.size);
-      document.getElementById('dz-empty').classList.add('hidden');
-      document.getElementById('dz-selected').classList.remove('hidden');
-      document.getElementById('run-btn').disabled = false;
-      document.getElementById('run-text').textContent = 'Run Pipeline';
+      panel.classList.remove('hidden');
+      btn.disabled = false;
+      txt.textContent = stagedFiles.length === 1
+        ? 'Add 1 File to Queue'
+        : `Add ${stagedFiles.length} Files to Queue`;
+
+      list.innerHTML = '';
+      stagedFiles.forEach((f, idx) => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between gap-2 text-sm';
+        li.innerHTML = `
+          <span class="text-gray-300 truncate flex-1">${escHtml(f.name)}</span>
+          <span class="text-gray-600 text-xs shrink-0">${formatBytes(f.size)}</span>
+          <button class="text-gray-700 hover:text-red-400 transition-colors shrink-0 text-xs"
+                  onclick="removeStagedFile(${idx})">✕</button>`;
+        list.appendChild(li);
+      });
     }
 
-    function clearFile(e) {
-      e.stopPropagation();
-      selectedFile = null;
+    function removeStagedFile(idx) {
+      stagedFiles.splice(idx, 1);
+      renderStaged();
+    }
+
+    function clearStaged() {
+      stagedFiles = [];
       document.getElementById('file-input').value = '';
-      document.getElementById('dz-empty').classList.remove('hidden');
-      document.getElementById('dz-selected').classList.add('hidden');
-      document.getElementById('run-btn').disabled = true;
-      document.getElementById('run-text').textContent = 'Select a file to begin';
+      renderStaged();
     }
 
-    function onFileSelect(e) { setFile(e.target.files[0]); }
+    function onFileSelect(e) { addFiles(e.target.files); }
     function onDragOver(e) {
       e.preventDefault();
       document.getElementById('drop-zone').classList.add('drop-hover');
@@ -369,26 +504,259 @@
     function onDrop(e) {
       e.preventDefault();
       document.getElementById('drop-zone').classList.remove('drop-hover');
-      if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+      addFiles(e.dataTransfer.files);
     }
 
-    // ── Toggle switches ────────────────────────────────────────────────
-    function toggleSwitch(btn) {
-      const nowOn = btn.getAttribute('aria-checked') !== 'true';
-      btn.setAttribute('aria-checked', String(nowOn));
-      btn.style.background = nowOn ? '#3b82f6' : '#374151';
-      btn.querySelector('span').style.left = nowOn ? '22px' : '2px';
+    // ── Enqueue all staged files ───────────────────────────────────────
+    async function enqueueAll() {
+      if (stagedFiles.length === 0) return;
+      const files = [...stagedFiles];
+      clearStaged();
+
+      for (const file of files) {
+        await enqueueFile(file);
+      }
     }
 
-    function onMlToggle() {
-      const on = document.getElementById('tog-ml').getAttribute('aria-checked') === 'true';
-      const wrap = document.getElementById('ml-thresh-wrap');
-      wrap.classList.toggle('opacity-30', !on);
-      wrap.classList.toggle('pointer-events-none', !on);
+    async function enqueueFile(file) {
+      const fd = new FormData();
+      fd.append('file',         file);
+      fd.append('skip_porn',    String(!getToggle('tog-porn')));
+      fd.append('skip_3r',      String(!getToggle('tog-3r')));
+      fd.append('use_ml',       String(getToggle('tog-ml')));
+      fd.append('workers',      document.getElementById('opt-workers').value);
+      fd.append('ml_threshold', document.getElementById('opt-threshold').value);
+
+      let res, data;
+      try {
+        res  = await fetch('/clean', { method: 'POST', body: fd });
+        data = await res.json();
+      } catch (err) {
+        console.error('Enqueue failed for', file.name, err);
+        return;
+      }
+      if (!res.ok || data.error) {
+        console.error('Server error for', file.name, data.error);
+        return;
+      }
+
+      const jobId = data.job_id;
+      logCache[jobId] = [];
+      subscribeSSE(jobId, file.name);
+      refreshQueueUI();
     }
 
-    function getToggle(id) {
-      return document.getElementById(id).getAttribute('aria-checked') === 'true';
+    // ── SSE subscription per job ───────────────────────────────────────
+    function subscribeSSE(jobId, filename) {
+      if (sseMap[jobId]) return;
+      const es = new EventSource('/progress/' + jobId);
+      sseMap[jobId] = es;
+
+      es.onmessage = function(evt) {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === 'heartbeat') return;
+
+        if (msg.type === 'log') {
+          const text = msg.msg || '';
+          let cls = 'text-gray-400';
+          if (msg.level === 'WARNING') cls = 'text-yellow-300';
+          if (msg.level === 'ERROR')   cls = 'text-red-400';
+          if (/Pipeline initialised|Scanning|Loading/i.test(text)) cls = 'text-blue-300';
+          logCache[jobId].push({ text, cls });
+          if (logCache[jobId].length > 500) logCache[jobId].shift();
+
+          // Live-update if this job is being viewed
+          if (viewedJobId === jobId) {
+            appendLog(text, cls);
+            const m = text.match(/Processed\s+([\d,]+)\s+records/);
+            if (m) updateProgress(parseInt(m[1].replace(/,/g,''), 10));
+          }
+          return;
+        }
+
+        if (msg.type === 'done') {
+          es.close();
+          delete sseMap[jobId];
+          logCache[jobId].push({ text: '✓ Pipeline complete!', cls: 'text-emerald-400' });
+          if (viewedJobId === jobId) {
+            appendLog('✓ Pipeline complete!', 'text-emerald-400');
+            document.getElementById('progress-bar').style.width = '100%';
+            setStatus('Done', 'bg-emerald-400', false);
+            showResults(jobId, msg.summary);
+          }
+          refreshQueueUI();
+          return;
+        }
+
+        if (msg.type === 'error') {
+          es.close();
+          delete sseMap[jobId];
+          const errMsg = '✗ ' + (msg.msg || 'Unknown error');
+          logCache[jobId].push({ text: errMsg, cls: 'text-red-400' });
+          if (viewedJobId === jobId) {
+            appendLog(errMsg, 'text-red-400');
+            setStatus('Error', 'bg-red-500', false);
+            document.getElementById('progress-bar').style.background = '#ef4444';
+          }
+          refreshQueueUI();
+        }
+      };
+
+      es.onerror = function() {
+        if (es.readyState !== EventSource.CLOSED) return;
+        delete sseMap[jobId];
+      };
+    }
+
+    // ── Queue UI ───────────────────────────────────────────────────────
+    async function refreshQueueUI() {
+      let data;
+      try {
+        const res = await fetch('/queue');
+        data = await res.json();
+      } catch { return; }
+
+      const jobs = data.jobs || [];
+      const waiting = jobs.filter(j => j.status === 'queued').length;
+      const running = jobs.filter(j => j.status === 'running').length;
+
+      // Header badge
+      const badge = document.getElementById('hdr-queue-badge');
+      const queueLen = waiting + running;
+      if (queueLen > 0) {
+        badge.classList.remove('hidden');
+        document.getElementById('hdr-queue-count').textContent = queueLen;
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      document.getElementById('queue-summary').textContent =
+        jobs.length === 0 ? '—' :
+        `${running} running · ${waiting} waiting · ${jobs.filter(j=>j.status==='done').length} done`;
+
+      const list = document.getElementById('queue-list');
+      if (jobs.length === 0) {
+        list.innerHTML = '<p class="text-center text-gray-700 italic py-6 text-sm">No jobs yet.</p>';
+        return;
+      }
+
+      list.innerHTML = '';
+      jobs.forEach(job => {
+        const row = buildQueueRow(job);
+        list.appendChild(row);
+      });
+
+      // Auto-subscribe SSE for queued/running jobs that we haven't subscribed yet
+      jobs.forEach(job => {
+        if ((job.status === 'queued' || job.status === 'running') && !sseMap[job.job_id]) {
+          if (!logCache[job.job_id]) logCache[job.job_id] = [];
+          subscribeSSE(job.job_id, job.filename);
+        }
+      });
+
+      // Auto-view the running job if nothing is currently being viewed
+      if (!viewedJobId) {
+        const running = jobs.find(j => j.status === 'running');
+        if (running) viewJob(running.job_id, running.filename, running.status, running.summary);
+      }
+    }
+
+    function buildQueueRow(job) {
+      const row = document.createElement('div');
+      const isViewed = job.job_id === viewedJobId;
+
+      const statusColor = {
+        queued:    'text-blue-400',
+        running:   'text-blue-300',
+        done:      'text-emerald-400',
+        error:     'text-red-400',
+        cancelled: 'text-gray-600',
+      }[job.status] || 'text-gray-500';
+
+      const statusLabel = {
+        queued:    `#${job.queue_position} in queue`,
+        running:   'Running…',
+        done:      'Done',
+        error:     'Error',
+        cancelled: 'Cancelled',
+      }[job.status] || job.status;
+
+      const dotClass = {
+        queued:    'bg-blue-600',
+        running:   'bg-blue-400 pulse-dot',
+        done:      'bg-emerald-400',
+        error:     'bg-red-500',
+        cancelled: 'bg-gray-700',
+      }[job.status] || 'bg-gray-700';
+
+      row.className = [
+        'glass rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer',
+        'transition-all duration-150 hover:border-blue-400/30',
+        job.status === 'running'   ? 'queue-row-running' : '',
+        job.status === 'done'      ? 'queue-row-done'    : '',
+        job.status === 'error'     ? 'queue-row-error'   : '',
+        job.status === 'cancelled' ? 'queue-row-cancelled' : '',
+        isViewed ? 'ring-1 ring-blue-500/40' : '',
+      ].join(' ');
+
+      row.onclick = () => viewJob(job.job_id, job.filename, job.status, job.summary);
+
+      row.innerHTML = `
+        <span class="w-2 h-2 rounded-full shrink-0 ${dotClass}"></span>
+        <span class="text-sm text-gray-200 truncate flex-1">${escHtml(job.filename)}</span>
+        <span class="text-xs ${statusColor} shrink-0">${statusLabel}</span>
+        ${job.status === 'queued'
+          ? `<button class="text-xs text-gray-700 hover:text-red-400 transition-colors shrink-0 ml-1"
+                    onclick="cancelJob(event,'${job.job_id}')">✕</button>` : ''}
+        ${job.status === 'done'
+          ? `<a href="/download/${job.job_id}/cleaned" download
+                class="text-xs text-emerald-500 hover:text-emerald-300 shrink-0 ml-1"
+                onclick="event.stopPropagation()" title="Download cleaned JSONL">↓</a>` : ''}`;
+
+      return row;
+    }
+
+    function viewJob(jobId, filename, status, summary) {
+      viewedJobId = jobId;
+
+      // Repopulate log from cache
+      const box = document.getElementById('log-box');
+      box.innerHTML = '';
+      const cached = logCache[jobId] || [];
+      cached.forEach(({ text, cls }) => appendLog(text, cls));
+
+      document.getElementById('log-for-file').textContent = '· ' + filename;
+      document.getElementById('counter-wrap').classList.remove('hidden');
+
+      if (status === 'running') {
+        setStatus('Running…', 'bg-blue-400', true);
+        document.getElementById('results-panel').classList.add('hidden');
+        document.getElementById('review-section').classList.add('hidden');
+      } else if (status === 'done') {
+        setStatus('Done', 'bg-emerald-400', false);
+        document.getElementById('progress-bar').style.width = '100%';
+        if (summary) showResults(jobId, summary);
+      } else if (status === 'error') {
+        setStatus('Error', 'bg-red-500', false);
+        document.getElementById('results-panel').classList.add('hidden');
+      } else if (status === 'queued') {
+        setStatus('Waiting in queue', 'bg-blue-600', false);
+        document.getElementById('results-panel').classList.add('hidden');
+      } else {
+        setStatus('Cancelled', 'bg-gray-600', false);
+        document.getElementById('results-panel').classList.add('hidden');
+      }
+
+      // Re-render queue to update active highlight
+      refreshQueueUI();
+    }
+
+    async function cancelJob(evt, jobId) {
+      evt.stopPropagation();
+      try {
+        await fetch('/queue/cancel/' + jobId, { method: 'POST' });
+      } catch {}
+      refreshQueueUI();
     }
 
     // ── Log helpers ────────────────────────────────────────────────────
@@ -409,143 +777,213 @@
         'text-xs ' + dotColor.replace('bg-', 'text-');
     }
 
-    // ── Start a pipeline job ───────────────────────────────────────────
-    async function startJob() {
-      if (!selectedFile) return;
-      if (sse) { sse.close(); sse = null; }
-
-      // Reset UI
-      document.getElementById('log-box').innerHTML = '';
-      document.getElementById('results-panel').classList.add('hidden');
-      document.getElementById('counter-wrap').classList.remove('hidden');
-      document.getElementById('progress-bar').style.width = '2%';
-      document.getElementById('counter-text').textContent = '0 records';
-      setStatus('Running…', 'bg-blue-400', true);
-      document.getElementById('run-btn').disabled = true;
-      document.getElementById('run-text').textContent = 'Processing…';
-
-      // Build form data
-      const fd = new FormData();
-      fd.append('file', selectedFile);
-      fd.append('skip_porn',   String(!getToggle('tog-porn')));
-      fd.append('skip_3r',     String(!getToggle('tog-3r')));
-      fd.append('use_ml',      String(getToggle('tog-ml')));
-      fd.append('workers',     document.getElementById('opt-workers').value);
-      fd.append('ml_threshold', document.getElementById('opt-threshold').value);
-
-      let res;
-      try {
-        res = await fetch('/clean', { method: 'POST', body: fd });
-      } catch (err) {
-        setStatus('Network error', 'bg-red-500', false);
-        appendLog('Network error: ' + err.message, 'text-red-400');
-        document.getElementById('run-btn').disabled = false;
-        document.getElementById('run-text').textContent = 'Run Pipeline';
-        return;
-      }
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        setStatus('Error', 'bg-red-500', false);
-        appendLog('Error: ' + (data.error || 'Unknown error'), 'text-red-400');
-        document.getElementById('run-btn').disabled = false;
-        document.getElementById('run-text').textContent = 'Run Pipeline';
-        return;
-      }
-
-      currentJobId = data.job_id;
-      appendLog('Job started (' + currentJobId.slice(0, 8) + '…)', 'text-gray-600');
-
-      // Open SSE stream
-      sse = new EventSource('/progress/' + currentJobId);
-
-      sse.onmessage = function (evt) {
-        const msg = JSON.parse(evt.data);
-
-        if (msg.type === 'heartbeat') return;
-
-        if (msg.type === 'log') {
-          const text = msg.msg || '';
-          // Parse record-count progress from pipeline log lines
-          const m = text.match(/Processed\s+([\d,]+)\s+records/);
-          if (m) {
-            const count = parseInt(m[1].replace(/,/g, ''), 10);
-            document.getElementById('counter-text').textContent =
-              count.toLocaleString() + ' records';
-            // Advance progress bar gradually (no known total — use asymptotic fill)
-            const bar = document.getElementById('progress-bar');
-            const cur = parseFloat(bar.style.width) || 2;
-            bar.style.width = Math.min(90, cur + 3) + '%';
-          }
-          // Colour by level / content
-          let cls = 'text-gray-400';
-          if (msg.level === 'WARNING') cls = 'text-yellow-300';
-          if (msg.level === 'ERROR')   cls = 'text-red-400';
-          if (/Pipeline initialised|Scanning|Loading/i.test(text)) cls = 'text-blue-300';
-          appendLog(text, cls);
-          return;
-        }
-
-        if (msg.type === 'done') {
-          sse.close();
-          const s = msg.summary || {};
-          document.getElementById('progress-bar').style.width = '100%';
-          const total = s.total_processed || 0;
-          document.getElementById('counter-text').textContent =
-            total.toLocaleString() + ' records processed';
-          setStatus('Done', 'bg-emerald-400', false);
-          appendLog('✓ Pipeline complete!', 'text-emerald-400');
-
-          // Fill stats
-          const flagged = s.total_flagged || 0;
-          document.getElementById('stat-total').textContent    = total.toLocaleString();
-          document.getElementById('stat-flagged').textContent  = flagged.toLocaleString();
-          document.getElementById('stat-porn').textContent     = (s.total_porn || 0).toLocaleString();
-          document.getElementById('stat-clean').textContent    = Math.max(0, total - flagged).toLocaleString();
-          document.getElementById('stat-race').textContent     = (s.total_3r_race || 0).toLocaleString();
-          document.getElementById('stat-religion').textContent = (s.total_3r_religion || 0).toLocaleString();
-          document.getElementById('stat-royalty').textContent  = (s.total_3r_royalty || 0).toLocaleString();
-
-          const elapsed = (s.elapsed_seconds || 0).toFixed(1);
-          const thr     = Math.round(s.throughput_records_per_sec || 0);
-          const dev     = s.device || 'cpu';
-          document.getElementById('stat-perf').textContent =
-            `Finished in ${elapsed}s  ·  ${thr.toLocaleString()} rec/s  ·  device: ${dev}`;
-
-          // Download links
-          document.getElementById('dl-cleaned').href =
-            '/download/' + currentJobId + '/cleaned';
-          document.getElementById('dl-csv').href =
-            '/download/' + currentJobId + '/flagged_csv';
-          document.getElementById('dl-jsonl').href =
-            '/download/' + currentJobId + '/flagged_jsonl';
-
-          document.getElementById('results-panel').classList.remove('hidden');
-          document.getElementById('run-btn').disabled = false;
-          document.getElementById('run-text').textContent = 'Run Again';
-          return;
-        }
-
-        if (msg.type === 'error') {
-          sse.close();
-          setStatus('Error', 'bg-red-500', false);
-          appendLog('✗ ' + (msg.msg || 'Unknown error'), 'text-red-400');
-          document.getElementById('progress-bar').style.background = '#ef4444';
-          document.getElementById('run-btn').disabled = false;
-          document.getElementById('run-text').textContent = 'Run Pipeline';
-          return;
-        }
-      };
-
-      sse.onerror = function () {
-        if (sse.readyState === EventSource.CLOSED) return;
-        setStatus('Connection lost', 'bg-red-500', false);
-        appendLog(
-          'SSE connection dropped — the job may still be running on the server.',
-          'text-yellow-300'
-        );
-      };
+    function updateProgress(count) {
+      document.getElementById('counter-text').textContent = count.toLocaleString() + ' records';
+      const bar = document.getElementById('progress-bar');
+      const cur = parseFloat(bar.style.width) || 2;
+      bar.style.width = Math.min(90, cur + 2) + '%';
     }
+
+    function showResults(jobId, s) {
+      const flagged = s.total_flagged || 0;
+      const total   = s.total_processed || 0;
+      document.getElementById('stat-total').textContent    = total.toLocaleString();
+      document.getElementById('stat-flagged').textContent  = flagged.toLocaleString();
+      document.getElementById('stat-porn').textContent     = (s.total_porn || 0).toLocaleString();
+      document.getElementById('stat-clean').textContent    = Math.max(0, total - flagged).toLocaleString();
+      document.getElementById('stat-race').textContent     = (s.total_3r_race || 0).toLocaleString();
+      document.getElementById('stat-religion').textContent = (s.total_3r_religion || 0).toLocaleString();
+      document.getElementById('stat-royalty').textContent  = (s.total_3r_royalty || 0).toLocaleString();
+
+      const elapsed = (s.elapsed_seconds || 0).toFixed(1);
+      const thr     = Math.round(s.throughput_records_per_sec || 0);
+      document.getElementById('stat-perf').textContent =
+        `Finished in ${elapsed}s  ·  ${thr.toLocaleString()} rec/s  ·  device: ${s.device || 'cpu'}`;
+
+      document.getElementById('dl-cleaned').href = `/download/${jobId}/cleaned`;
+      document.getElementById('dl-csv').href     = `/download/${jobId}/flagged_csv`;
+      document.getElementById('dl-jsonl').href   = `/download/${jobId}/flagged_jsonl`;
+
+      document.getElementById('results-panel').classList.remove('hidden');
+    }
+
+    // ── Toggle switches ────────────────────────────────────────────────
+    function toggleSwitch(btn) {
+      const nowOn = btn.getAttribute('aria-checked') !== 'true';
+      btn.setAttribute('aria-checked', String(nowOn));
+      btn.style.background = nowOn ? '#3b82f6' : '#374151';
+      btn.querySelector('span').style.left = nowOn ? '22px' : '2px';
+    }
+    function onMlToggle() {
+      const on = document.getElementById('tog-ml').getAttribute('aria-checked') === 'true';
+      const wrap = document.getElementById('ml-thresh-wrap');
+      wrap.classList.toggle('opacity-30', !on);
+      wrap.classList.toggle('pointer-events-none', !on);
+    }
+    function getToggle(id) {
+      return document.getElementById(id).getAttribute('aria-checked') === 'true';
+    }
+
+    // ── Review panel ───────────────────────────────────────────────────
+    let reviewPage = 1, reviewFilter = 'all', reviewSearch = '', reviewTotalPages = 0;
+    const keepSet = new Set();
+
+    async function openReview() {
+      keepSet.clear();
+      reviewPage = 1; reviewFilter = 'all'; reviewSearch = '';
+      document.getElementById('rv-search').value = '';
+      document.getElementById('rv-keep-count').textContent = '0 kept';
+      document.getElementById('rv-apply-result').classList.add('hidden');
+      document.getElementById('review-section').classList.remove('hidden');
+      document.getElementById('review-section').scrollIntoView({ behavior:'smooth', block:'start' });
+      setFilterTab('all');
+    }
+
+    function setFilterTab(filter) {
+      reviewFilter = filter; reviewPage = 1;
+      document.querySelectorAll('.rv-tab').forEach(tab => {
+        const active = tab.dataset.filter === filter;
+        tab.classList.toggle('bg-blue-600/30', active);
+        tab.classList.toggle('text-blue-300', active);
+        tab.classList.toggle('text-gray-500', !active);
+      });
+      loadReviewPage();
+    }
+
+    async function loadReviewPage() {
+      const box = document.getElementById('rv-cards');
+      box.innerHTML = '<p class="text-center text-gray-600 py-10 col-span-full">Loading…</p>';
+      const params = new URLSearchParams({
+        page: reviewPage, per_page: 20, filter: reviewFilter, q: reviewSearch,
+      });
+      let data;
+      try {
+        const res = await fetch('/flagged/' + viewedJobId + '?' + params);
+        data = await res.json();
+      } catch (err) {
+        box.innerHTML = '<p class="text-red-400 text-center py-10 col-span-full">Network error: ' + escHtml(err.message) + '</p>';
+        return;
+      }
+      if (data.error) {
+        box.innerHTML = '<p class="text-red-400 text-center py-10 col-span-full">' + escHtml(data.error) + '</p>';
+        return;
+      }
+      reviewTotalPages = data.total_pages || 0;
+      document.getElementById('rv-count').textContent =
+        data.total.toLocaleString() + ' record' + (data.total !== 1 ? 's' : '');
+      document.getElementById('rv-page-info').textContent =
+        reviewTotalPages ? ('Page ' + data.page + ' / ' + reviewTotalPages) : 'No records';
+      document.getElementById('rv-prev').disabled = data.page <= 1;
+      document.getElementById('rv-next').disabled = data.page >= reviewTotalPages;
+      if (!data.records.length) {
+        box.innerHTML = '<p class="text-center text-gray-600 py-10 col-span-full italic">No records match this filter.</p>';
+        return;
+      }
+      box.innerHTML = '';
+      data.records.forEach(rec => box.appendChild(buildCard(rec)));
+    }
+
+    function buildCard(rec) {
+      const isKept = keepSet.has(rec.line_no);
+      const card = document.createElement('div');
+      card.className = 'glass rounded-xl p-4 space-y-3 transition-all duration-200';
+      card.dataset.line = rec.line_no;
+      if (isKept) card.style.borderColor = 'rgba(52,211,153,0.35)';
+      const badges = [];
+      if (rec.is_porn) {
+        const lang = (rec.porn_language || 'UNK').toUpperCase();
+        badges.push('<span class="px-2 py-0.5 rounded-md text-xs font-bold" style="background:rgba(239,68,68,0.2);color:#f87171">PORN·' + lang + '</span>');
+      }
+      (rec.three_r_categories || []).forEach(cat => {
+        badges.push('<span class="px-2 py-0.5 rounded-md text-xs font-bold" style="background:rgba(234,179,8,0.15);color:#fde047">3R·' + cat.toUpperCase() + '</span>');
+      });
+      const mlBadge = rec.porn_ml_score != null
+        ? '<span class="text-xs text-gray-600">ML ' + (rec.porn_ml_score * 100).toFixed(0) + '%</span>' : '';
+      const kChips = [];
+      (rec.porn_keywords || []).slice(0,8).forEach(k =>
+        kChips.push('<span class="px-1.5 py-0.5 rounded text-xs" style="background:rgba(239,68,68,0.15);color:#fca5a5">' + escHtml(k) + '</span>'));
+      [...(rec.race_keywords||[]),...(rec.religion_keywords||[]),...(rec.royalty_keywords||[])].slice(0,8).forEach(k =>
+        kChips.push('<span class="px-1.5 py-0.5 rounded text-xs" style="background:rgba(234,179,8,0.12);color:#fde047">' + escHtml(k) + '</span>'));
+      const btnStyle = isKept
+        ? 'background:rgba(52,211,153,0.15);color:#34d399;border-color:rgba(52,211,153,0.3)'
+        : 'background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.28)';
+      card.innerHTML = [
+        '<div class="flex items-start justify-between gap-3">',
+          '<div class="flex items-center gap-1.5 flex-wrap">',
+            '<span class="text-xs font-mono text-gray-600 shrink-0">Line&nbsp;' + rec.line_no.toLocaleString() + '</span>',
+            badges.join(''), mlBadge,
+          '</div>',
+          '<button onclick="toggleKeep(' + rec.line_no + ',this)" class="shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all duration-150" style="' + btnStyle + '">',
+            isKept ? '✓ Keep' : '✕ Remove',
+          '</button>',
+        '</div>',
+        '<div class="text-sm text-gray-200 rounded-lg p-3 leading-relaxed overflow-y-auto" style="background:rgba(0,0,0,0.45);max-height:9rem;white-space:pre-wrap;word-break:break-word;font-family:inherit">',
+          escHtml(rec.text_preview || ''),
+        '</div>',
+        kChips.length ? '<div class="flex flex-wrap gap-1">' + kChips.join('') + '</div>' : '',
+      ].join('');
+      return card;
+    }
+
+    function toggleKeep(lineNo, btn) {
+      const card = btn.closest('[data-line]');
+      if (keepSet.has(lineNo)) {
+        keepSet.delete(lineNo);
+        btn.setAttribute('style','background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.28)');
+        btn.textContent = '✕ Remove';
+        if (card) card.style.borderColor = '';
+      } else {
+        keepSet.add(lineNo);
+        btn.setAttribute('style','background:rgba(52,211,153,0.15);color:#34d399;border-color:rgba(52,211,153,0.3)');
+        btn.textContent = '✓ Keep';
+        if (card) card.style.borderColor = 'rgba(52,211,153,0.35)';
+      }
+      document.getElementById('rv-keep-count').textContent = keepSet.size.toLocaleString() + ' kept';
+    }
+
+    function prevPage() { if (reviewPage > 1) { reviewPage--; loadReviewPage(); } }
+    function nextPage() { if (reviewPage < reviewTotalPages) { reviewPage++; loadReviewPage(); } }
+    function onSearchInput(val) {
+      reviewSearch = val.trim().toLowerCase(); reviewPage = 1;
+      clearTimeout(window._rvSearchTimer);
+      window._rvSearchTimer = setTimeout(loadReviewPage, 280);
+    }
+
+    async function applyCustomClean() {
+      const btn = document.getElementById('rv-apply-btn');
+      btn.disabled = true; btn.textContent = 'Generating…';
+      document.getElementById('rv-apply-result').classList.add('hidden');
+      let data;
+      try {
+        const res = await fetch('/reapply/' + viewedJobId, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keep_lines: [...keepSet] }),
+        });
+        data = await res.json();
+      } catch (err) { data = { error: err.message }; }
+      btn.disabled = false; btn.textContent = 'Apply Custom Clean';
+      const msg = document.getElementById('rv-apply-msg');
+      if (data.error) {
+        msg.textContent = 'Error: ' + data.error;
+        msg.className = 'text-red-400 text-sm';
+      } else {
+        msg.textContent = '✓ Done — ' + (data.records_written||0).toLocaleString() + ' kept, '
+          + (data.records_removed||0).toLocaleString() + ' removed.';
+        msg.className = 'text-emerald-400 text-sm font-medium';
+        const dl = document.getElementById('rv-dl-custom');
+        dl.href = data.download_url; dl.download = data.filename;
+      }
+      document.getElementById('rv-apply-result').classList.remove('hidden');
+    }
+
+    // ── Poll queue every 3s to catch server-side state changes ─────────
+    function startQueuePoll() {
+      refreshQueueUI();
+      queuePollTimer = setInterval(refreshQueueUI, 3000);
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────
+    startQueuePoll();
   </script>
 
 </body>
