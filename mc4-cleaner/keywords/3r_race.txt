@@ -1,66 +1,127 @@
 # 3R - RACE (Kaum/Ras) - Sensitive racial terms in Malaysia
+# Format: one pattern per line; regex-compatible
 # Covers: racial slurs, racial incitement, ethnic supremacy, racial discrimination
 # Both English and Bahasa Melayu
+# Legal reference: Sedition Act 1948, Penal Code s.504, s.505(c)
+# Last reviewed: 2026 — improved for mC4 dataset filtering
 
-# Racial slurs targeting Malays
+# ─────────────────────────────────────────────
+# RACIAL SLURS — TARGETING MALAYS / BUMIPUTERA
+# ─────────────────────────────────────────────
 \bmelayu bodoh\b
 \bmelayu malas\b
 \bmelayu celaka\b
-\bbumi tak guna\b
+\bmelayu babi\b
+\bmelayu hapus\b
+\bmelayu hina\b
 \borang melayu babi\b
+\bbumi tak guna\b
+\bbumiputera bodoh\b
+\bbumiputera malas\b
+\bbumi celaka\b
 
-# Racial slurs targeting Chinese Malaysians
+# ─────────────────────────────────────────────
+# RACIAL SLURS — TARGETING CHINESE MALAYSIANS
+# ─────────────────────────────────────────────
 \bcina babi\b
 \bcina celaka\b
 \bcina balik china\b
 \bcina pendatang\b
-\bkeling\b
-\bkiling\b
-\bdayak babi\b
-\borang asli bodoh\b
+\bcina komunis\b
+\bcina bodoh\b
+\bcina hina\b
+\bchinese go back china\b
+\bchinese pendatang\b
 
-# Racial slurs targeting Indian Malaysians
+# ─────────────────────────────────────────────
+# RACIAL SLURS — TARGETING INDIAN MALAYSIANS
+# Removed: \bkeling\b standalone — appears in place names (Sungai Keling etc.)
+#           Use bigram form for lower false positive rate
+# ─────────────────────────────────────────────
 \bkeling babi\b
+\bkeling celaka\b
+\bkeling bodoh\b
 \bindian celaka\b
+\bindian pariah\b
 \bmamak celaka\b
 \bindian balik india\b
+# Removed: \bkilling\b — false positive; this is the English word "killing",
+#   not related to racial slurs. The slur "keling" is handled via bigrams above.
 
-# Racial incitement / supremacy (EN)
+# ─────────────────────────────────────────────
+# RACIAL SLURS — OTHER ETHNIC GROUPS
+# ─────────────────────────────────────────────
+\bdayak babi\b
+\bdayak bodoh\b
+\borang asli bodoh\b
+\borang asli hina\b
+\bkadazan bodoh\b
+\biban babi\b
+
+# ─────────────────────────────────────────────
+# RACIAL INCITEMENT / SUPREMACY (ENGLISH)
+# Removed: \bright of return\b (geopolitical term, very noisy in news context)
+# ─────────────────────────────────────────────
 \bracial supremacy\b
 \bethnic cleansing\b
 \bwhite supremac\b
 \bracial superiority\b
-\bracial inferior\b
+\bracial inferiority\b
 \bsend them back\b
-\bright of return\b
 \bra[cs]ist\b
 \banti.?melayu\b
 \banti.?cina\b
 \banti.?india\b
+\bethnic superiority\b
+\bethnic hatred\b
+\brace war\b
+\brace riot\b
+\bhate the chinese\b
+\bhate the malays\b
+\bhate the indians\b
+\bkill all chinese\b
+\bkill all malays\b
+\bkill all indians\b
+\bdeport all chinese\b
+\bdeport all indians\b
+\bdeport all malays\b
 
-# Racial incitement (BM)
+# ─────────────────────────────────────────────
+# RACIAL INCITEMENT (BM)
+# Removed: \btumpah darah\b (patriotic phrase, very noisy)
+#           \bhak orang melayu\b (policy discussion term)
+# ─────────────────────────────────────────────
 \bkaumnya rendah\b
 \bkaum hina\b
 \bkaum kafir\b
 \bbangsa asing\b
 \bpendatang haram\b
 \busir pendatang\b
+\busir cina\b
+\busir india\b
 \bbumiputera terhina\b
 \bbumputera lemah\b
 \bketuanan melayu\b
-\bhak orang melayu\b
-\bcina komunis\b
-\bindian pariah\b
-\btumpah darah\b
 \bperang kaum\b
 \brusuhan kaum\b
 \b13 mei\b
 \bperistiwa 13 mei\b
 \bhuru.?hara kaum\b
 \bhuru.?hara racial\b
+\bbunuh kaum\b
+\bhapus kaum\b
+\bethnik rendah\b
+\bdarah biru melayu\b
 
-# Dangerous comparisons / hierarchies
+# ─────────────────────────────────────────────
+# DANGEROUS COMPARISONS / RACIAL HIERARCHIES
+# ─────────────────────────────────────────────
 \bkaum.*lebih baik\b
 \bkaum.*lebih tinggi\b
 \bkaum.*lebih rendah\b
 \betnik.*lebih baik\b
+\betnik.*lebih rendah\b
+\bbangsa.*lebih mulia\b
+\bbangsa.*lebih hina\b
+\bras.*lebih superior\b
+\bras.*lebih inferior\b
