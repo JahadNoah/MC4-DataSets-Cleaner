@@ -43,6 +43,66 @@ _INSULT_AMPLIFIERS = re.compile(
 )
 
 # ---------------------------------------------------------------------------
+# Safe context indicators — presence of these suggests the text is
+# news / academic / historical / educational rather than hateful.
+# Used by the autonomous verification layer to rescue false positives.
+# ---------------------------------------------------------------------------
+_SAFE_CONTEXT = re.compile(
+    r"\b("
+    # News / reporting
+    r"berita|laporan|dilaporkan|menurut|kata beliau|sumber|agensi|"
+    r"bernama|astro awani|the star|nst|utusan|harian metro|"
+    r"wartawan|sidang media|kenyataan akhbar|press statement|"
+    r"reported|according to|news|journalist|press conference|"
+    # Academic / research
+    r"kajian|penyelidikan|jurnal|universiti|profesor|dr\.|"
+    r"thesis|dissertation|research|study|academic|scholar|findings|"
+    r"analisis|analysis|data menunjukkan|data shows|"
+    # Historical / educational
+    r"sejarah|bersejarah|historical|history|peringatan|"
+    r"commemorate|memorial|muzium|museum|dokumentari|documentary|"
+    r"pendidikan|education|kurikulum|curriculum|"
+    # Legal / policy discussion
+    r"perlembagaan|constitution|undang.?undang|legislation|"
+    r"parlimen|parliament|dewan rakyat|dewan negara|"
+    r"mahkamah|court|tribunal|"
+    # Positive / harmony context
+    r"perpaduan|keharmonian|muhibbah|toleransi|"
+    r"unity|harmony|tolerance|diversity|inclusiv|"
+    r"bersatu|bersama.?sama|kerjasama|cooperation|"
+    r"perayaan|celebration|sambutan|meraikan|"
+    r"menghormati|respect|hormati"
+    r")\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+# ---------------------------------------------------------------------------
+# Hard patterns — explicit slur bigrams that are ALWAYS hateful regardless
+# of context. These bypass the autonomous verification.
+# Pattern strings are matched against keyword file patterns.
+# ---------------------------------------------------------------------------
+_HARD_RACE_SLURS = re.compile(
+    r"\b("
+    # Ethnic slur + insult combos (always hateful, no innocent usage)
+    r"melayu bodoh|melayu malas|melayu celaka|melayu babi|melayu hapus|melayu hina|"
+    r"orang melayu babi|bumi tak guna|bumiputera bodoh|bumiputera malas|bumi celaka|"
+    r"cina babi|cina celaka|cina balik china|cina pendatang|cina komunis|cina bodoh|cina hina|"
+    r"chinese go back china|chinese pendatang|"
+    r"keling babi|keling celaka|keling bodoh|indian celaka|indian pariah|mamak celaka|"
+    r"indian balik india|"
+    r"dayak babi|dayak bodoh|orang asli bodoh|orang asli hina|kadazan bodoh|iban babi|"
+    # Direct violence
+    r"kill all chinese|kill all malays|kill all indians|"
+    r"deport all chinese|deport all indians|deport all malays|"
+    r"bunuh kaum|hapus kaum|usir cina|usir india|usir pendatang|"
+    # Ethnic hierarchy insults
+    r"kaum hina|kaumnya rendah|kaum kafir|ethnik rendah|"
+    r"bangsa.*lebih hina|ras.*lebih inferior"
+    r")\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+# ---------------------------------------------------------------------------
 # Pattern loader
 # ---------------------------------------------------------------------------
 
@@ -136,6 +196,10 @@ class ThreeRResult:
     # ML scores (if enabled)
     ml_scores: dict[str, float] = field(default_factory=dict)
 
+    # Autonomous verification metadata
+    race_verified: bool | None = None   # None = not checked, True = confirmed, False = rescued
+    verification_reason: str = ""       # Why verified/rescued
+
     # Human-readable category list
     @property
     def categories(self) -> list[str]:
@@ -159,6 +223,8 @@ class ThreeRResult:
             "religion_matches": self.religion_matches,
             "royalty_matches": self.royalty_matches,
             "ml_scores": self.ml_scores,
+            "race_verified": self.race_verified,
+            "verification_reason": self.verification_reason,
         }
 
 
@@ -232,6 +298,92 @@ class ThreeRDetector:
             if _INSULT_AMPLIFIERS.search(snippet):
                 return True
         return False
+
+    def _verify_race_flag(self, text: str, race_matches: list[str]) -> tuple[bool, str]:
+        """
+        Autonomous verification for race flags.
+
+        Determines whether a race-flagged text is truly 'menghina' (insulting)
+        or is a false positive from neutral/news/academic context.
+
+        Returns (is_confirmed, reason).
+
+        Logic:
+          1. Hard slur match → always confirm (no innocent usage)
+          2. Check safe context density vs insult density
+          3. If ML available, use it as tiebreaker for ambiguous cases
+        """
+        text_lower = text.lower()
+
+        # --- Layer 1: Hard slur check (unambiguous hatred) ---
+        if _HARD_RACE_SLURS.search(text_lower):
+            return True, "hard_slur"
+
+        # --- Layer 2: Safe context analysis ---
+        safe_hits = _SAFE_CONTEXT.findall(text_lower)
+        insult_hits = _INSULT_AMPLIFIERS.findall(text_lower)
+        safe_count = len(safe_hits)
+        insult_count = len(insult_hits)
+
+        # Strong safe context with few/no insults → likely false positive
+        if safe_count >= 2 and insult_count <= 1:
+            logger.debug(
+                "Race flag RESCUED (safe_context=%d, insults=%d): %.80s…",
+                safe_count, insult_count, text,
+            )
+            return False, f"safe_context({safe_count}≥2,insults={insult_count}≤1)"
+
+        # If safe context present and outnumbers insults, also rescue
+        if safe_count > 0 and safe_count > insult_count:
+            logger.debug(
+                "Race flag RESCUED (safe>insult: %d>%d): %.80s…",
+                safe_count, insult_count, text,
+            )
+            return False, f"safe_dominates({safe_count}>{insult_count})"
+
+        # --- Layer 3: Targeted insult check ---
+        # Verify the insult amplifier is actually directed AT a racial entity,
+        # not just nearby by coincidence. Check tighter proximity (40 chars).
+        race_entities = re.compile(
+            r"\b(melayu|cina|india|iban|kadazan|dayak|orang asli|bumi|"
+            r"bumiputera|pendatang|chinese|malay|indian|kaum|bangsa)\b",
+            re.IGNORECASE,
+        )
+        entity_hits = list(race_entities.finditer(text_lower))
+        is_targeted = False
+        for entity_match in entity_hits:
+            e_start = entity_match.start()
+            e_end = entity_match.end()
+            # Tight window: 40 chars before and after the entity
+            window_start = max(0, e_start - 40)
+            window_end = min(len(text_lower), e_end + 40)
+            window = text_lower[window_start:window_end]
+            if _INSULT_AMPLIFIERS.search(window):
+                is_targeted = True
+                break
+
+        if not is_targeted and safe_count > 0:
+            return False, "insult_not_targeted_at_entity"
+
+        # --- Layer 4: ML tiebreaker (if available and ambiguous) ---
+        if self.use_ml and _zs_available:
+            ml_scores = self._ml_classify(text)
+            race_score = ml_scores.get("racial hatred", 0)
+            safe_score = ml_scores.get("safe content", 0)
+            if safe_score > race_score and race_score < self.ml_threshold:
+                logger.debug(
+                    "Race flag RESCUED by ML (safe=%.2f > racial=%.2f): %.80s…",
+                    safe_score, race_score, text,
+                )
+                return False, f"ml_safe({safe_score:.2f}>{race_score:.2f})"
+            if race_score >= self.ml_threshold:
+                return True, f"ml_confirmed(racial={race_score:.2f})"
+
+        # Default: if we got here with matches, confirm the flag
+        if is_targeted:
+            return True, "targeted_insult"
+
+        return True, "keyword_match"
 
     def _ml_classify(self, text: str) -> dict[str, float]:
         """Run zero-shot classification and return label→score dict."""
@@ -319,6 +471,20 @@ class ThreeRDetector:
                 result.religion_flagged = True
             if ml_scores.get("insult to royalty", 0) >= self.ml_threshold:
                 result.royalty_flagged = True
+
+        # --- Autonomous verification for RACE flags -----------------------
+        # Checks whether flagged race content truly "menghina" or is
+        # a false positive from news / academic / historical context.
+        if result.race_flagged:
+            verified, reason = self._verify_race_flag(text, result.race_matches)
+            result.race_verified = verified
+            result.verification_reason = reason
+            if not verified:
+                result.race_flagged = False
+                logger.info(
+                    "RACE flag auto-rescued (%s): matches=%s text=%.100s…",
+                    reason, result.race_matches, text,
+                )
 
         result.is_sensitive = (
             result.race_flagged
