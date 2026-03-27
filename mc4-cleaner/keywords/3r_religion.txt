@@ -1,20 +1,33 @@
 # 3R - RELIGION (Agama) - Sensitive religious terms under Malaysian law
+# Format: one pattern per line; regex-compatible
 # Covers: blasphemy, apostasy, religious incitement, insulting religious figures
-# Sedition Act, Penal Code s.298, s.298A
+# Legal reference: Sedition Act, Penal Code s.298, s.298A, s.295
+# Last reviewed: 2026 — improved for mC4 dataset filtering
 
-# Insulting Islam / Allah
+# ─────────────────────────────────────────────
+# INSULTING ISLAM / ALLAH
+# Removed: \bsesat\b standalone (overloaded — used in navigation, everyday BM)
+#           \bkafir\b standalone (academic/theological use in many articles)
+#           Use bigram/context forms instead
+# ─────────────────────────────────────────────
 \bhina islam\b
 \borang islam bodoh\b
 \bislam sesat\b
 \bislam keganasan\b
 \bislam ganas\b
+\bislam itu ganas\b
+\bislam itu jahat\b
 \ballah palsu\b
+\ballah tidak wujud\b
 \bnabi sesat\b
 \bnabi bodoh\b
+\bnabi palsu\b
 \bmuhammad palsu\b
+\bmuhammad sesat\b
 \bhina nabi\b
 \bhina al.?quran\b
 \bal.?quran dusta\b
+\bal.?quran palsu\b
 \bislam murtad\b
 \bkeluar islam\b
 \bapostasy\b
@@ -22,13 +35,17 @@
 \bmurtad\b
 \bibadah syirik\b
 \bsyirik\b
-\bsesat\b
-\bkafir\b
 \bmenghina agama\b
 \bmenghina masjid\b
 \bmenghina solat\b
+\bmenghina nabi\b
+\bhina agama islam\b
+\bislam agama ganas\b
 
-# Insulting other religions (Christianity, Buddhism, Hinduism, Sikhism)
+# ─────────────────────────────────────────────
+# INSULTING OTHER RELIGIONS
+# (Christianity, Buddhism, Hinduism, Sikhism)
+# ─────────────────────────────────────────────
 \bhina kristian\b
 \bhina buddha\b
 \bhina hindu\b
@@ -37,13 +54,26 @@
 \bbuddha palsu\b
 \bharekrishna gila\b
 \bangkat salib bodoh\b
+\bhina gereja\b
+\bhina kuil\b
+\bhina tokong\b
+\bpendeta palsu\b
+\bpastor palsu\b
+\bhina paderi\b
 
-# Religious incitement (EN)
+# ─────────────────────────────────────────────
+# RELIGIOUS INCITEMENT (ENGLISH)
+# Removed: \bblasphemy\b standalone (academic/legal/news discussion term — very noisy)
+#           \bholy war\b standalone (historical/academic — noisy)
+#           \breligious war\b standalone (history content — noisy)
+# ─────────────────────────────────────────────
 \bislam is terror\b
 \bislam is evil\b
-\ball muslims are\b
+\bislam is a disease\b
+\ball muslims are terrorist\b
+\ball muslims are evil\b
 \bkill the infidel\b
-\binfidel die\b
+\binfidel must die\b
 \bjihad kill\b
 \bcrusade against islam\b
 \bburn the quran\b
@@ -56,17 +86,25 @@
 \banti.?hindu\b
 \banti.?buddhist\b
 \bislamophob\b
-\breligious hate\b
-\bblasphemy\b
-\bholy war\b
-\breligious war\b
+\breligious hatred\b
+\bkill all muslims\b
+\bkill all christians\b
+\bkill all hindus\b
+\bwipe out islam\b
+\bwipe out christianity\b
+\bexterminate muslims\b
 
-# Religious incitement (BM)
+# ─────────────────────────────────────────────
+# RELIGIOUS INCITEMENT (BM)
+# ─────────────────────────────────────────────
 \bperang agama\b
 \bbakar masjid\b
 \bbakar gereja\b
 \bbakar kuil\b
 \bbakar surau\b
+\bmusnahkan masjid\b
+\bmusnahkan gereja\b
+\bmusnahkan kuil\b
 \bmuslim kafir\b
 \bagama sesat\b
 \bkristian kafir\b
@@ -80,17 +118,38 @@
 \bkitab injil palsu\b
 \bbible palsu\b
 \bveda palsu\b
+\bbunuh penganut kristian\b
+\bbunuh penganut hindu\b
+\bhapus agama kristian\b
+\bhapus agama hindu\b
 
-# Conversion / proselytizing pressure (illegal in Malaysia)
+# ─────────────────────────────────────────────
+# ILLEGAL CONVERSION / PROSELYTIZING (Malaysia)
+# ─────────────────────────────────────────────
 \bkeluar dari islam\b
 \btukar agama kepada kristian\b
 \bmasuk kristian\b
 \bmissionari haram\b
 \bconvert muslim\b
+\bconvert orang islam\b
+\bajak keluar islam\b
+\bpujuk tinggal islam\b
 
-# Extremism / terrorism association context
+# ─────────────────────────────────────────────
+# EXTREMISM / TERRORISM ASSOCIATION
+# ─────────────────────────────────────────────
 \bterrorism islam\b
 \bislamic terrorist\b
 \bjihadist\b
 \bradicalize\b
 \bradikalisasi\b
+\bpengganas islam\b
+\bkumpulan militan\b
+\bextremis islam\b
+\bislamic extremis\b
+\bperekrutan militan\b
+\bsertai isis\b
+\bsertai daesh\b
+\bjoin isis\b
+\bjoin daesh\b
+\bjoin al.?qaeda\b
